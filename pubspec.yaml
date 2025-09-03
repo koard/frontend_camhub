@@ -1,0 +1,43 @@
+name: campusapp
+description: "A new Flutter project."
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.2.2
+  firebase_auth: ^5.7.0
+  firebase_core: ^3.15.2
+  firebase_database: ^11.3.10
+  flutter_screenutil: ^5.9.0
+  google_fonts: ^6.2.1
+  provider: ^6.1.1
+  cloud_firestore: ^5.6.12
+  flutter_dotenv: ^5.2.1
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+  fluttertoast: ^8.0.9
+  geolocator: ^11.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/onboarding1.png
+    - assets/onboarding2.png
+    - assets/onboarding3.png
+    - assets/mock_events/mock_events.json
+    - assets/mock_schedule/schedule.json
+    - assets/mock_subjects/mock_subjects.json
+    - assets/.env

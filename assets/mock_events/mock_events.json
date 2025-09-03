@@ -1,0 +1,224 @@
+[
+  {
+    "description": "งานแสดงนวัตกรรมวิทยาศาสตร์และเทคโนโลยีระดับประเทศ",
+    "end_date": "2025-08-05",
+    "image_url": "https://example.com/images/event1.jpg",
+    "name": "งานมหกรรมวิทยาศาสตร์แห่งชาติ",
+    "participants": [
+      "สมชาย ใจดี",
+      "สุดา สมบูรณ์",
+      "วีระชัย อินทร์ใจ"
+    ],
+    "start_date": "2025-08-01"
+  },
+  {
+    "description": "ประกวดภาพยนตร์สั้นจากผู้สร้างทั่วภูมิภาค",
+    "end_date": "2025-09-12",
+    "image_url": "https://example.com/images/event2.jpg",
+    "name": "เทศกาลหนังสั้นอาเซียน",
+    "participants": [
+      "กิตติศักดิ์ พรหมมา",
+      "ชลธิชา วงศ์วรรณ"
+    ],
+    "start_date": "2025-09-10"
+  },
+  {
+    "description": "การแข่งขันพัฒนานวัตกรรมเพื่อการศึกษา",
+    "end_date": "2025-07-22",
+    "image_url": "https://example.com/images/event3.jpg",
+    "name": "Hackathon for Education",
+    "participants": [
+      "ปวีณา มณีรัตน์",
+      "ศราวุธ เกิดผล",
+      "อรพินท์ นาคี"
+    ],
+    "start_date": "2025-07-20"
+  },
+  {
+    "description": "กิจกรรมปลูกจิตสำนึกและลงมือทำเพื่อสิ่งแวดล้อม",
+    "end_date": "2025-08-17",
+    "image_url": "https://example.com/images/event4.jpg",
+    "name": "ค่ายเยาวชนรักษ์สิ่งแวดล้อม",
+    "participants": [
+      "อนุชา ใจมั่น",
+      "ทัศนีย์ หอมหวล"
+    ],
+    "start_date": "2025-08-15"
+  },
+  {
+    "description": "อบรมและแข่งขันการพัฒนาแอปพลิเคชันด้านดนตรี",
+    "end_date": "2025-10-03",
+    "image_url": "https://example.com/images/event5.jpg",
+    "name": "Music Start Up Workshop",
+    "participants": [
+      "ณัฐพล แสงทอง",
+      "พิมพ์ชนก ศรีดี"
+    ],
+    "start_date": "2025-10-01"
+  },
+  {
+    "description": "แข่งขันการประดิษฐ์หุ่นยนต์โดยเยาวชนและนิสิต",
+    "end_date": "2025-09-22",
+    "image_url": "https://example.com/images/event6.jpg",
+    "name": "งานประกวดหุ่นยนต์ระดับชาติ",
+    "participants": [
+      "เกรียงศักดิ์ แก้วกล้า",
+      "จิราภรณ์ สีใส"
+    ],
+    "start_date": "2025-09-20"
+  },
+  {
+    "description": "เวิร์กช็อปพัฒนาทักษะด้านการคิดเชิงออกแบบ",
+    "end_date": "2025-11-07",
+    "image_url": "https://example.com/images/event7.jpg",
+    "name": "Design Thinking Bootcamp",
+    "participants": [
+      "ศักดิ์สิทธิ์ ม่วงงาม",
+      "ทิพย์สุดา ยอดเยี่ยม"
+    ],
+    "start_date": "2025-11-05"
+  },
+  {
+    "description": "อบรมการเขียนเชิงสร้างสรรค์กับนักเขียนมืออาชีพ",
+    "end_date": "2025-12-03",
+    "image_url": "https://example.com/images/event8.jpg",
+    "name": "ค่ายนักเขียนสร้างสรรค์",
+    "participants": [
+      "พงศธร รักไทย",
+      "ชนัญชิดา เรืองศรี"
+    ],
+    "start_date": "2025-12-01"
+  },
+  {
+    "description": "เทคโนโลยีเกษตรแห่งอนาคต สำหรับเกษตรกรยุคใหม่",
+    "end_date": "2025-10-12",
+    "image_url": "https://example.com/images/event9.jpg",
+    "name": "Tech4Farm Expo",
+    "participants": [
+      "มานพ แสงสุวรรณ",
+      "สุกัญญา ปราณี"
+    ],
+    "start_date": "2025-10-10"
+  },
+  {
+    "description": "การแข่งขันนำเสนอไอเดียธุรกิจสตาร์ทอัพ",
+    "end_date": "2025-08-26",
+    "image_url": "https://example.com/images/event10.jpg",
+    "name": "Startup Pitching Thailand",
+    "participants": [
+      "อธิปพล วิริยะ",
+      "สาธิตา บำรุงศรี"
+    ],
+    "start_date": "2025-08-25"
+  },
+  {
+    "description": "งานสัมมนาและสาธิตนวัตกรรม AI จากทั่วโลก",
+    "end_date": "2025-09-03",
+    "image_url": "https://example.com/images/event11.jpg",
+    "name": "งานแสดงเทคโนโลยี AI",
+    "participants": [
+      "วรพงษ์ เมฆา",
+      "นฤมล นพเก้า"
+    ],
+    "start_date": "2025-09-01"
+  },
+  {
+    "description": "เยาวชนร่วมเรียนรู้และแก้ปัญหาสิ่งแวดล้อม",
+    "end_date": "2025-08-02",
+    "image_url": "https://example.com/images/event12.jpg",
+    "name": "Green Camp for Youth",
+    "participants": [
+      "สหรัฐ บุญมี",
+      "พัชรี ลิ้มเจริญ"
+    ],
+    "start_date": "2025-07-30"
+  },
+  {
+    "description": "เผยแพร่วัฒนธรรมและภูมิปัญญาท้องถิ่น",
+    "end_date": "2025-10-22",
+    "image_url": "https://example.com/images/event13.jpg",
+    "name": "มหกรรมวัฒนธรรมท้องถิ่น",
+    "participants": [
+      "อาภัสรา หงส์ทอง",
+      "เทวัญ จิตอารีย์"
+    ],
+    "start_date": "2025-10-20"
+  },
+  {
+    "description": "การแข่งขันเกมระดับประเทศ ชิงเงินรางวัลใหญ่",
+    "end_date": "2025-12-12",
+    "image_url": "https://example.com/images/event14.jpg",
+    "name": "e-Sports Tournament 2025",
+    "participants": [
+      "ปริญญา อินทร",
+      "ณิชารีย์ โสภณ"
+    ],
+    "start_date": "2025-12-10"
+  },
+  {
+    "description": "สัมมนานานาชาติเรื่องเมืองอัจฉริยะ",
+    "end_date": "2025-09-07",
+    "image_url": "https://example.com/images/event15.jpg",
+    "name": "Smart City Conference",
+    "participants": [
+      "อนงค์นาฏ มีศรี",
+      "วัชระ ศรีสอาด"
+    ],
+    "start_date": "2025-09-05"
+  },
+  {
+    "description": "อบรมเทคนิคการตลาดออนไลน์ยุคใหม่",
+    "end_date": "2025-11-17",
+    "image_url": "https://example.com/images/event16.jpg",
+    "name": "Digital Marketing Camp",
+    "participants": [
+      "สุกฤษฎิ์ นาคทอง",
+      "พรรณิภา ศักดา"
+    ],
+    "start_date": "2025-11-15"
+  },
+  {
+    "description": "อบรมออกแบบประสบการณ์ผู้ใช้ระดับเข้มข้น",
+    "end_date": "2025-08-12",
+    "image_url": "https://example.com/images/event17.jpg",
+    "name": "UX/UI Design Workshop",
+    "participants": [
+      "ณัฐชยา ยอดนิยม",
+      "วิทยา พูนสุข"
+    ],
+    "start_date": "2025-08-10"
+  },
+  {
+    "description": "แสดงผลงานวิจัยนวัตกรรมจากทั่วประเทศ",
+    "end_date": "2025-09-28",
+    "image_url": "https://example.com/images/event18.jpg",
+    "name": "Thailand Research Expo",
+    "participants": [
+      "รัตนา ศิริพร",
+      "ชาญชัย บัวบาน"
+    ],
+    "start_date": "2025-09-25"
+  },
+  {
+    "description": "งานส่งเสริมสุขภาพและไลฟ์สไตล์สุขภาพดี",
+    "end_date": "2025-11-01",
+    "image_url": "https://example.com/images/event19.jpg",
+    "name": "Healthy Living Fair",
+    "participants": [
+      "สายใจ ชื่นจิต",
+      "พลวัต บุญยืน"
+    ],
+    "start_date": "2025-10-30"
+  },
+  {
+    "description": "งานแสดงนวัตกรรมไทยเพื่ออนาคต",
+    "end_date": "2025-11-24",
+    "image_url": "https://example.com/images/event20.jpg",
+    "name": "Thai Innovation Week",
+    "participants": [
+      "นิธิศ ศรีสุข",
+      "ญาณี แก้วใส"
+    ],
+    "start_date": "2025-11-20"
+  }
+]

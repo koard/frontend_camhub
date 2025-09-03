@@ -1,0 +1,112 @@
+[
+  {
+    "subject_id": "MAT101",
+    "subject": "คณิตศาสตร์",
+    "teacher": "อ.สมชาย",
+    "day": "จันทร์",
+    "start_time": "09:00",
+    "end_time": "10:30",
+    "room": "401",
+    "credit": 3,
+    "available_seats": 40
+  },
+  {
+    "subject_id": "SCI101",
+    "subject": "วิทยาศาสตร์",
+    "teacher": "อ.สมหญิง",
+    "day": "จันทร์",
+    "start_time": "10:45",
+    "end_time": "12:15",
+    "room": "402",
+    "credit": 3,
+    "available_seats": 35
+  },
+  {
+    "subject_id": "THA101",
+    "subject": "ภาษาไทย",
+    "teacher": "อ.ประนอม",
+    "day": "จันทร์",
+    "start_time": "13:00",
+    "end_time": "14:30",
+    "room": "403",
+    "credit": 2,
+    "available_seats": 40
+  },
+  {
+    "subject_id": "ENG101",
+    "subject": "อังกฤษ",
+    "teacher": "อ.เจน",
+    "day": "จันทร์",
+    "start_time": "15:00",
+    "end_time": "16:00",
+    "room": "404",
+    "credit": 2,
+    "available_seats": 30
+  },
+  {
+    "subject_id": "SCI102",
+    "subject": "วิทยาศาสตร์",
+    "teacher": "อ.สมหญิง",
+    "day": "อังคาร",
+    "start_time": "10:45",
+    "end_time": "12:15",
+    "room": "402",
+    "credit": 3,
+    "available_seats": 35
+  },
+  {
+    "subject_id": "THA102",
+    "subject": "ภาษาไทย",
+    "teacher": "อ.ประนอม",
+    "day": "พุธ",
+    "start_time": "13:00",
+    "end_time": "14:30",
+    "room": "403",
+    "credit": 2,
+    "available_seats": 40
+  },
+  {
+    "subject_id": "ENG102",
+    "subject": "อังกฤษ",
+    "teacher": "อ.เจน",
+    "day": "พฤหัสบดี",
+    "start_time": "08:30",
+    "end_time": "10:00",
+    "room": "404",
+    "credit": 2,
+    "available_seats": 30
+  },
+  {
+    "subject_id": "HIS101",
+    "subject": "ประวัติศาสตร์",
+    "teacher": "อ.สมใจ",
+    "day": "ศุกร์",
+    "start_time": "10:30",
+    "end_time": "12:00",
+    "room": "405",
+    "credit": 2,
+    "available_seats": 50
+  },
+  {
+    "subject_id": "ART101",
+    "subject": "ศิลปะ",
+    "teacher": "อ.รุ่ง",
+    "day": "เสาร์",
+    "start_time": "13:00",
+    "end_time": "14:30",
+    "room": "406",
+    "credit": 2,
+    "available_seats": 25
+  },
+  {
+    "subject_id": "HEA101",
+    "subject": "สุขศึกษา",
+    "teacher": "อ.ชล",
+    "day": "อาทิตย์",
+    "start_time": "09:00",
+    "end_time": "10:30",
+    "room": "407",
+    "credit": 2,
+    "available_seats": 30
+  }
+]
