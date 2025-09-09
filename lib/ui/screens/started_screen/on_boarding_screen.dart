@@ -20,29 +20,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'title': 'ยินดีต้อนรับ',
       'subtitle':
           'เตรียมพร้อมสู่การใช้ชีวิตในรั้วมหาวิทยาลัยอย่างมั่นใจ ด้วยแอปเดียวที่ช่วยให้คุณไม่พลาดทุกเรื่องสำคัญ',
-      'image':
-          'https://file.aiquickdraw.com/imgcompressed/img/compressed_aef897d3a1a6dd9c4df2fed767a217c4.webp',
+      'image': 'assets/images/01.png',
     },
     {
       'title': 'รวมทุกอย่างไว้ในที่เดียว',
       'subtitle':
           'ไม่ว่าจะเป็นตารางเรียน กิจกรรม ข่าวสาร หรือเอกสาร ทุกอย่างถูกรวบรวมไว้ให้คุณใช้งานได้ง่าย ๆ',
-      'image':
-          'https://file.aiquickdraw.com/imgcompressed/img/compressed_75a84113e2636bbc78bf8073a4909bea.webp',
+      'image': 'assets/images/02.png',
     },
     {
       'title': 'วางแผนชีวิตง่ายขึ้น',
       'subtitle':
           'ตั้งเป้าหมาย ติดตามความก้าวหน้า จัดการเวลา และสร้างสมดุลระหว่างเรียนและชีวิตส่วนตัว',
-      'image':
-          'https://file.aiquickdraw.com/imgcompressed/img/compressed_6ee5a45c92302edeb73568b000d2ced6.webp',
+      'image': 'assets/images/03.png',
     },
     {
       'title': 'พร้อมเริ่มต้นหรือยัง ?',
       'subtitle':
           'เพียงไม่กี่คลิก คุณก็พร้อมใช้งานแอปที่จะช่วยให้ชีวิตในมหาวิทยาลัยของคุณง่ายขึ้นกว่าเดิม',
-      'image':
-          'https://file.aiquickdraw.com/imgcompressed/img/compressed_f747977b86558a0ffb7440f53affccaf.webp',
+      'image': 'assets/images/04.png',
     },
   ];
 
@@ -103,7 +99,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 if (page['image'] != null)
                   SizedBox(
                     height: 250.h, // ปรับความสูง
-                    child: Image.network(page['image']!, fit: BoxFit.contain),
+                    child: Image.asset(page['image']!, fit: BoxFit.contain),
                   ),
                 SizedBox(height: 40.h), // spacing
                 Text(
