@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/routes.dart';
 
@@ -12,6 +13,12 @@ import 'ui/providers/subject_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Load environment variables (e.g., API_BASE_URL)
+  try {
+    await dotenv.load(fileName: 'assets/.env');
+  } catch (_) {
+    // If .env is missing in assets, continue with defaults
+  }
   await Firebase.initializeApp();
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,

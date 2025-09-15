@@ -19,8 +19,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _navigateToNext() async {
     final prefs = await SharedPreferences.getInstance();
-    final seenOnboarding =
-        prefs.getBool('seenOnboarding') != null ? true : false;
     // หน่วงเวลา 3 วินาที
     await Future.delayed(const Duration(seconds: 3));
 
@@ -36,7 +34,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: const Color(0xFF113F67),
+      backgroundColor: Color(0xFF113F67),
       body: Center(
         child: Text(
           'CampusApp',
