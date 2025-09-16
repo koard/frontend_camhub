@@ -1,14 +1,13 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'ui/screens/main_screen/main_screen.dart';
+import 'package:campusapp/ui/screens/started_screen/on_boarding_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
-import 'core/routes.dart';
-
-import 'ui/screens/started_screen/splash_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'ui/providers/subject_provider.dart';
 
 void main() async {
@@ -35,8 +34,6 @@ class MyApp extends StatelessWidget {
           providers: [ChangeNotifierProvider(create: (_) => SubjectProvider())],
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
-            onGenerateRoute: AppRoutes.onGenerateRoute,
-            initialRoute: AppRoutes.splash,
             title: 'Flutter Onboarding Example',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(
@@ -61,9 +58,52 @@ class MyApp extends StatelessWidget {
                 ),
               ),
             ),
-            home: const SplashScreen(),
+            home: const Launcher(),
           ),
         );
+      },
+    );
+  }
+}
+
+// Launcher widget: เช็คว่าควรไป onboarding หรือ home
+class Launcher extends StatefulWidget {
+  const Launcher({super.key});
+
+  @override
+  State<Launcher> createState() => _LauncherState();
+}
+
+class _LauncherState extends State<Launcher> {
+  Future<bool> isFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('seenOnboarding') != true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: isFirstLaunch(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF113F67),
+            body: Center(child: CircularProgressIndicator(color: Colors.white)),
+          );
+        }
+        if (snapshot.data == true) {
+          return OnboardingScreen(
+            onFinish: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('seenOnboarding', true);
+              if (mounted) {
+                setState(() {});
+              }
+            },
+          );
+        } else {
+          return const MainHomeScreen();
+        }
       },
     );
   }

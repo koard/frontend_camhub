@@ -10,7 +10,6 @@ import 'package:campusapp/ui/screens/group_screen/group_screen.dart';
 import 'package:campusapp/ui/screens/example_info_screen/example_info_screen.dart';
 import 'package:campusapp/ui/screens/simulation_screen/simulation_screen.dart';
 import 'package:campusapp/ui/screens/subject_screen/subject_screen.dart';
-import 'package:campusapp/ui/screens/started_screen/splash_screen.dart';
 import 'package:campusapp/ui/screens/started_screen/on_boarding_screen.dart';
 
 class AppRoutes {
@@ -55,7 +54,7 @@ class AppRoutes {
       case onboarding:
         return _buildSlideRoute(const OnboardingScreen(), settings);
       default:
-        return _buildSlideRoute(const SplashScreen(), settings);
+        return _buildSlideRoute(const MapScreen(), settings);
     }
   }
 

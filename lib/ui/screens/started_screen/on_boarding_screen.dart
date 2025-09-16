@@ -4,8 +4,10 @@ import 'package:campusapp/ui/screens/account_screen/login_screen.dart';
 import '../main_screen/main_screen.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  final Future<void> Function()? onFinish;
+  const OnboardingScreen({super.key, this.onFinish});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -64,9 +66,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+
   void _goToHome() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('seenOnboarding', true);
+    if (widget.onFinish != null) {
+      await widget.onFinish!();
+    }
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => MainHomeScreen()),
