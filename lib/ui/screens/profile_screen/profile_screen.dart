@@ -3,7 +3,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:campusapp/ui/screens/account_screen/login_screen.dart';
 import 'package:campusapp/core/routes.dart';
 import '../../providers/profile_provider.dart'; // import service
-import 'package:campusapp/ui/screens/started_screen/splash_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -147,7 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const SplashScreen(),
+                            builder: (_) => const LoginScreen(),
                           ),
                           (route) => false,
                         );
