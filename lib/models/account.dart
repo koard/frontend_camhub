@@ -40,9 +40,7 @@ class User {
   final String lastName;
   final Year year;
   final String group;
-  final int age;
   final Faculty faculty;
-  final String role = "user";
 
   User({
     required this.email,
@@ -51,7 +49,6 @@ class User {
     required this.lastName,
     required this.year,
     required this.group,
-    required this.age,
     required this.faculty,
   });
 }
