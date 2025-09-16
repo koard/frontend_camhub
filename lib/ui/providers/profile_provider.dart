@@ -1,13 +1,46 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'dart:developer';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class UserService {
-  final CollectionReference users = FirebaseFirestore.instance.collection(
-    'users',
-  );
+  String get _baseUrl =>
+      dotenv.env['API_BASE_URL']?.trim().replaceAll(RegExp(r"/+$"), '') ??
+      'http://localhost:8000';
 
-  Future<Map<String, dynamic>?> getUserProfile(String uid) async {
-    final docSnapshot = await users.doc(uid).get();
-    if (!docSnapshot.exists) return null;
-    return docSnapshot.data() as Map<String, dynamic>;
+  Future<Map<String, dynamic>?> getUserProfile() async {
+    final storage = FlutterSecureStorage();
+
+    final token = await storage.read(key: 'access_token');
+
+    if (token == null || token.isEmpty) {
+      log('No access_token in storage');
+      return null;
+    }
+
+    final data = jsonDecode(token);
+    final accessToken = data['access_token'];
+
+    final uri = Uri.parse('$_baseUrl/api/user');
+    final res = await http.get(
+      uri,
+      headers: {
+        'accept': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+    );
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      final data = jsonDecode(res.body);
+      if (data is Map<String, dynamic>) return data;
+      log('Profile response is not a JSON object');
+      return null;
+    }
+
+    if (res.statusCode == 401) {
+      await storage.delete(key: 'access_token');
+    }
+    return null;
   }
 }

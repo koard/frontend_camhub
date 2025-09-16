@@ -1,11 +1,16 @@
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter/material.dart';
+import 'dart:developer';
+import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+import 'package:campusapp/models/faculty.dart';
 
 import '../../widgets/auth_widgets/button.dart';
 import '../../widgets/auth_widgets/textfield.dart';
 import '../../../models/account.dart';
 import '../../service/user_service.dart';
-import '../../providers/auth_provider.dart';
+// import '../../providers/auth_provider.dart';
 
 import 'login_screen.dart';
 
@@ -17,27 +22,38 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final _auth = AuthService();
+  List<FacultyModel> _faculties = [];
+  // final _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
-
   final _firstName = TextEditingController();
+  final _username = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _lastName = TextEditingController();
   final _group = TextEditingController();
-  final _age = TextEditingController();
+  DateTime? _birthDate;
   Year _selectedYear = Year.year1;
-  Faculty _selectedFaculty = Faculty.computerEngineering;
+  int? _selectedFacultyId;
 
   @override
-  void dispose() {
-    super.dispose();
-    _firstName.dispose();
-    _email.dispose();
-    _password.dispose();
-    _lastName.dispose();
-    _group.dispose();
-    _age.dispose();
+  void initState() {
+    super.initState();
+    fetchFaculties();
+  }
+
+  Future<void> fetchFaculties() async {
+    final uri = Uri.parse('${dotenv.env['API_BASE_URL']}/api/faculty');
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      setState(() {
+        _faculties = data.map((e) => FacultyModel.fromJson(e)).toList();
+        if (_faculties.isNotEmpty) _selectedFacultyId = _faculties.first.id;
+      });
+    } else {
+      Fluttertoast.showToast(msg: "โหลดคณะล้มเหลว");
+    }
   }
 
   @override
@@ -88,6 +104,30 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _username,
+                        decoration: const InputDecoration(
+                          hintText: "กรุณากรอกชื่อผู้ใช้",
+                          labelText: "ชื่อผู้ใช้",
+                          contentPadding: EdgeInsets.symmetric(
+                            vertical: 15,
+                            horizontal: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(15)),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'กรุณากรอกชื่อผู้ใช้';
+                          }
+                          if (value.length < 3) {
+                            return 'ชื่อผู้ใช้ต้องยาวอย่างน้อย 3 ตัวอักษร';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
                       TextFormField(
                         controller: _email,
                         decoration: const InputDecoration(
@@ -178,21 +218,62 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       const SizedBox(height: 20),
-                      CustomDropdownField<Faculty>(
-                        label: 'คณะ',
-                        value: _selectedFaculty,
-                        items:
-                            Faculty.values.map((faculty) {
-                              return DropdownMenuItem(
-                                value: faculty,
-                                child: Text(faculty.title),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedFaculty = value!;
-                          });
+                      _faculties.isEmpty
+                          ? const Text('กำลังโหลดคณะ...')
+                          : CustomDropdownField<int>(
+                            label: 'คณะ',
+                            value: _selectedFacultyId!,
+                            items:
+                                _faculties
+                                    .map(
+                                      (f) => DropdownMenuItem<int>(
+                                        value: f.id,
+                                        child: Text(f.name),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: (value) {
+                              setState(() => _selectedFacultyId = value);
+                            },
+                          ),
+                      const SizedBox(height: 20),
+                      // วันเกิด
+                      InkWell(
+                        onTap: () async {
+                          final now = DateTime.now();
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime(
+                              now.year - 18,
+                              now.month,
+                              now.day,
+                            ),
+                            firstDate: DateTime(1900),
+                            lastDate: now,
+                          );
+                          if (picked != null) {
+                            setState(() => _birthDate = picked);
+                          }
                         },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'วันเดือนปีเกิด',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(15),
+                              ),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              vertical: 15,
+                              horizontal: 10,
+                            ),
+                          ),
+                          child: Text(
+                            _birthDate == null
+                                ? 'แตะเพื่อเลือกวันเกิด'
+                                : '${_birthDate!.year}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.day.toString().padLeft(2, '0')}',
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 20),
                       TextFormField(
@@ -237,34 +318,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       const SizedBox(height: 20),
-                      TextFormField(
-                        controller: _age,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          hintText: "กรุณากรอกอายุ",
-                          labelText: "อายุ",
-                          contentPadding: EdgeInsets.symmetric(
-                            vertical: 15,
-                            horizontal: 10,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(15)),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'กรุณากรอกอายุ';
-                          }
-                          final age = int.tryParse(value);
-                          if (age == null) {
-                            return 'กรุณากรอกอายุเป็นตัวเลข';
-                          }
-                          if (age < 15 || age > 100) {
-                            return 'อายุต้องอยู่ระหว่าง 15-100 ปี';
-                          }
-                          return null;
-                        },
-                      ),
+
                       const SizedBox(height: 20),
                       TextFormField(
                         controller: _group,
@@ -332,15 +386,9 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    final userService = UserService();
-    final navigator = Navigator.of(context); // จับไว้ก่อน await
-
-    // ตรวจสอบอีเมลซ้ำ
-    final isEmailExists = await _auth.isEmailExists(_email.text);
-    if (!mounted) return;
-    if (isEmailExists) {
+    if (_birthDate == null) {
       Fluttertoast.showToast(
-        msg: "อีเมลนี้ถูกใช้ไปแล้ว",
+        msg: 'กรุณาเลือกวันเดือนปีเกิด',
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.TOP,
         timeInSecForIosWeb: 1,
@@ -351,6 +399,9 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
+    final userService = UserService();
+    final navigator = Navigator.of(context); // จับไว้ก่อน await
+
     final userModel = User(
       email: _email.text,
       password: _password.text,
@@ -358,35 +409,40 @@ class _SignupScreenState extends State<SignupScreen> {
       lastName: _lastName.text,
       year: _selectedYear,
       group: _group.text,
-      age: int.tryParse(_age.text) ?? 18,
-      faculty: _selectedFaculty,
+      faculty: Faculty.other,
     );
 
-    final user = await _auth.createUserWithEmailAndPassword(
-      _email.text,
-      _password.text,
-    );
-
-    if (user != null) {
-      await userService.saveUser(user.uid, userModel);
+    try {
+      final ok = await userService.signup(
+        userModel,
+        username: _username.text,
+        birthDate: _birthDate!,
+        facultyId: _selectedFacultyId,
+        roleId: 2,
+      );
+      if (ok) {
+        Fluttertoast.showToast(
+          msg: "สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.TOP,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+        navigator.push(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
+    } catch (e) {
       if (!mounted) return;
+      String message = e.toString();
+      if (e is ApiException) {
+        message = e.detail ?? e.body;
+      }
 
       Fluttertoast.showToast(
-        msg: "สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.TOP,
-        timeInSecForIosWeb: 1,
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
-      navigator.push(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    } else {
-      if (!mounted) return;
-      Fluttertoast.showToast(
-        msg: "สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่",
+        msg: message,
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.TOP,
         timeInSecForIosWeb: 1,
