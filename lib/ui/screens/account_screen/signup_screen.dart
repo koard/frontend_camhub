@@ -31,7 +31,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final _password = TextEditingController();
   final _lastName = TextEditingController();
   final _group = TextEditingController();
-  final _age = TextEditingController();
   DateTime? _birthDate;
   Year _selectedYear = Year.year1;
   int? _selectedFacultyId;
@@ -319,34 +318,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       const SizedBox(height: 20),
-                      TextFormField(
-                        controller: _age,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          hintText: "กรุณากรอกอายุ",
-                          labelText: "อายุ",
-                          contentPadding: EdgeInsets.symmetric(
-                            vertical: 15,
-                            horizontal: 10,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(15)),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'กรุณากรอกอายุ';
-                          }
-                          final age = int.tryParse(value);
-                          if (age == null) {
-                            return 'กรุณากรอกอายุเป็นตัวเลข';
-                          }
-                          if (age < 15 || age > 100) {
-                            return 'อายุต้องอยู่ระหว่าง 15-100 ปี';
-                          }
-                          return null;
-                        },
-                      ),
+
                       const SizedBox(height: 20),
                       TextFormField(
                         controller: _group,
@@ -419,14 +391,16 @@ class _SignupScreenState extends State<SignupScreen> {
         msg: 'กรุณาเลือกวันเดือนปีเกิด',
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.TOP,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
       );
       return;
     }
 
     final userService = UserService();
     final navigator = Navigator.of(context); // จับไว้ก่อน await
-
-    // การตรวจสอบอีเมลให้ย้ายไปทำใน FastAPI (ส่ง 409/400 พร้อมข้อความ)
 
     final userModel = User(
       email: _email.text,
@@ -435,20 +409,10 @@ class _SignupScreenState extends State<SignupScreen> {
       lastName: _lastName.text,
       year: _selectedYear,
       group: _group.text,
-      age: int.tryParse(_age.text) ?? 18,
       faculty: Faculty.other,
     );
 
     try {
-      if (_selectedFacultyId == null) {
-        Fluttertoast.showToast(
-          msg: 'กรุณาเลือกคณะ',
-          toastLength: Toast.LENGTH_LONG,
-          gravity: ToastGravity.TOP,
-        );
-        return;
-      }
-
       final ok = await userService.signup(
         userModel,
         username: _username.text,
@@ -456,7 +420,6 @@ class _SignupScreenState extends State<SignupScreen> {
         facultyId: _selectedFacultyId,
         roleId: 2,
       );
-      if (!mounted) return;
       if (ok) {
         Fluttertoast.showToast(
           msg: "สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ",
@@ -470,21 +433,16 @@ class _SignupScreenState extends State<SignupScreen> {
         navigator.push(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
-      } else {
-        Fluttertoast.showToast(
-          msg: "สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่",
-          toastLength: Toast.LENGTH_LONG,
-          gravity: ToastGravity.TOP,
-          timeInSecForIosWeb: 1,
-          backgroundColor: Colors.red,
-          textColor: Colors.white,
-          fontSize: 16.0,
-        );
       }
     } catch (e) {
       if (!mounted) return;
+      String message = e.toString();
+      if (e is ApiException) {
+        message = e.detail ?? e.body;
+      }
+
       Fluttertoast.showToast(
-        msg: e.toString(),
+        msg: message,
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.TOP,
         timeInSecForIosWeb: 1,

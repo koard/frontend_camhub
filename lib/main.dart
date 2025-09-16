@@ -13,12 +13,7 @@ import 'ui/providers/subject_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Load environment variables (e.g., API_BASE_URL)
-  try {
-    await dotenv.load(fileName: 'assets/.env');
-  } catch (_) {
-    // If .env is missing in assets, continue with defaults
-  }
+  await dotenv.load(fileName: 'assets/.env');
   await Firebase.initializeApp();
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
