@@ -12,6 +12,7 @@ import 'ui/providers/subject_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Future.delayed(const Duration(seconds: 1));
   await dotenv.load(fileName: 'assets/.env');
   await Firebase.initializeApp();
   FirebaseFirestore.instance.settings = const Settings(
