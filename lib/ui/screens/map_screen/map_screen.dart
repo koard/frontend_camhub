@@ -11,6 +11,8 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  // Mock: อาคาร LRC (Learning Resource Center) PSU Hatyai
+  final LatLng targetBuilding = LatLng(7.006265, 100.499902); // LRC PSU Hatyai
   LatLng? currentPosition;
 
   @override
@@ -44,35 +46,46 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ตำแหน่งของฉัน')),
-      body:
-          currentPosition == null
-              ? const Center(child: CircularProgressIndicator())
-              : FlutterMap(
-                options: MapOptions(center: currentPosition, zoom: 16.0),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    subdomains: const ['a', 'b', 'c'],
-                    userAgentPackageName: 'com.example.app',
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        width: 80,
-                        height: 80,
-                        point: currentPosition!,
-                        child: const Icon(
-                          Icons.my_location,
-                          color: Colors.blue,
-                          size: 40,
-                        ),
+      appBar: AppBar(title: const Text('แผนที่มหาวิทยาลัย')),
+      body: currentPosition == null
+          ? const Center(child: CircularProgressIndicator())
+          : FlutterMap(
+              options: MapOptions(center: currentPosition, zoom: 16.0),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  subdomains: const ['a', 'b', 'c'],
+                  userAgentPackageName: 'com.example.app',
+                ),
+                MarkerLayer(
+                  markers: [
+                    // ตำแหน่งปัจจุบัน
+                    Marker(
+                      width: 80,
+                      height: 80,
+                      point: currentPosition!,
+                      child: const Icon(
+                        Icons.my_location,
+                        color: Colors.blue,
+                        size: 40,
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                    // Mock อาคารเป้าหมาย (LRC)
+                    Marker(
+                      width: 80,
+                      height: 80,
+                      point: targetBuilding,
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.red,
+                        size: 40,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }
