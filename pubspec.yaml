@@ -45,10 +45,29 @@ flutter:
     - assets/mock_subjects/mock_subjects.json
     - assets/.env
     - assets/images/
+    - assets/splash_icon.png
 
 flutter_native_splash:
+  # Required: Background color
   color: "#113F67"
+  
+  # Required: Your splash image (should be 1152x1152px for best results)
   image: assets/splash_icon.png
+  
+  # Platform support
   android: true
+  ios: true
   web: true
+  
+  # Fullscreen mode
   fullscreen: true
+  
+  # Image positioning
+  android_gravity: center
+  ios_content_mode: center
+  web_image_mode: center
+  
+  # Android 12+ specific configuration
+  android_12:
+    image: assets/splash_icon.png
+    color: "#113F67"
