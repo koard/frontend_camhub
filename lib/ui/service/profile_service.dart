@@ -11,8 +11,8 @@ class UserService {
 
   Future<Map<String, dynamic>?> getUserProfile() async {
     final storage = FlutterSecureStorage();
-
     final token = await storage.read(key: 'access_token');
+    log('Access token from storage: $token');
 
     if (token == null || token.isEmpty) {
       log('No access_token in storage');
@@ -30,6 +30,7 @@ class UserService {
         'Authorization': 'Bearer $accessToken',
       },
     );
+    log('Profile response status: ${res.statusCode}');
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final data = jsonDecode(res.body);

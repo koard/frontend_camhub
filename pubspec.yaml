@@ -27,6 +27,7 @@ dependencies:
   geolocator: ^11.0.0
   flutter_native_splash: ^2.4.6
   flutter_secure_storage: ^9.0.0
+  flip_card: ^0.7.0
 
 dev_dependencies:
   flutter_test:
