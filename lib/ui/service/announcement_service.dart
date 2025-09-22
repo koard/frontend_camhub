@@ -1,29 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:campusapp/models/announcement.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:developer';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class AnnouncementService {
-  static Future<List<Announcement>> fetchAll() async {
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('announcements')
-            .orderBy('date', descending: true)
-            .get();
+  String get _baseUrl =>
+      dotenv.env['API_BASE_URL']?.trim().replaceAll(RegExp(r"/+$"), '') ??
+      'http://localhost:8000';
 
-    return snapshot.docs
-        .map((doc) => Announcement.fromJson(doc.data()))
-        .toList();
-  }
-
-  static Future<List<Announcement>> fetchLatest({int limit = 3}) async {
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('announcements')
-            .orderBy('date', descending: true)
-            .limit(limit)
-            .get();
-
-    return snapshot.docs
-        .map((doc) => Announcement.fromJson(doc.data()))
-        .toList();
+  Future<List<Announcement>> getAnnouncements() async {
+    final uri = Uri.parse('$_baseUrl/api/annc');
+    final res = await http.get(uri, headers: {'accept': 'application/json'});
+    if (res.statusCode == 200) {
+      final List<dynamic> jsonList = jsonDecode(res.body);
+      return jsonList.map((json) => Announcement.fromJson(json)).toList();
+    } else {
+      log('Failed to fetch announcements: ${res.statusCode}');
+      return [];
+    }
   }
 }

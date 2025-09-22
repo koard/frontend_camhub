@@ -26,16 +26,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int get bannerCount => _bannerImages.length;
 
-  late Future<List<Announcement>> _announcementFuture;
   late Future<List<Event>> _eventFuture;
+
+  late Future<List<Announcement>> _announcementFuture;
 
   @override
   void initState() {
     super.initState();
     _startAutoSlide();
 
-    // ✅ Initialize futures only once
-    _announcementFuture = AnnouncementService.fetchLatest();
+    _announcementFuture = AnnouncementService().getAnnouncements();
     _eventFuture = EventService.fetchLatest();
   }
 
@@ -155,11 +155,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               // Announcements Section
-              _buildSectionHeader("Announcements", '/announcements'),
+              _buildSectionHeader("ประกาศ", '/announcements'),
               _buildAnnouncementList(),
 
               // Events Section
-              _buildSectionHeader("Events", '/events'),
+              _buildSectionHeader("กิจกรรม", '/events'),
               _buildEventList(),
 
               // Tools Section
@@ -223,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               Text(
-                "What's new",
+                "อะไรใหม่",
                 style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
               ),
               SizedBox(width: 8.w),
@@ -240,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
           GestureDetector(
             onTap: () => Navigator.pushNamed(context, route),
             child: Text(
-              'view all',
+              'ดูทั้งหมด',
               style: TextStyle(color: Colors.blue, fontSize: 14.sp),
             ),
           ),
@@ -268,15 +268,19 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
 
-          final data = snapshot.data!;
+          final announcements = snapshot.data!;
           return ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: 16.w),
-            itemCount: data.length,
+            itemCount: announcements.length,
             separatorBuilder: (_, __) => SizedBox(width: 12.w),
             itemBuilder: (context, index) {
-              final item = data[index];
-              return _buildCard(item.title, item.description, item.date);
+              final announcement = announcements[index];
+              return _buildCardAnnouncements(
+                announcement.title,
+                announcement.description,
+                announcement.displayDate,
+              );
             },
           );
         },
@@ -321,6 +325,45 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Shared card widget
   Widget _buildCard(String title, String description, DateTime? date) {
+    return Container(
+      width: 200.w,
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4.r)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: 4.h),
+          Text(
+            description,
+            style: TextStyle(fontSize: 12.sp),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const Spacer(),
+          Text(
+            date != null ? '${date.day}/${date.month}/${date.year}' : '',
+            style: TextStyle(fontSize: 10.sp, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardAnnouncements(
+    String title,
+    String description,
+    DateTime? date,
+  ) {
     return Container(
       width: 200.w,
       padding: EdgeInsets.all(12.w),

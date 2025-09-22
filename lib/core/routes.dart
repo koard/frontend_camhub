@@ -23,7 +23,6 @@ class AppRoutes {
   static const String exampleInfo = '/exampleInfo';
   static const String simulation = '/simulation';
   static const String subject = '/subject';
-  static const String splash = '/splash';
   static const String onboarding = '/onboarding';
   static const String announcements = '/announcements';
 
