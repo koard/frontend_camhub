@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ui/screens/main_screen/main_screen.dart';
 import 'package:campusapp/ui/screens/started_screen/on_boarding_screen.dart';
+import 'package:campusapp/core/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,15 +10,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'ui/providers/subject_provider.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Future.delayed(const Duration(seconds: 1));
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+
+  // Preserve splash screen during initialization
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  // Your initialization code
   await dotenv.load(fileName: 'assets/.env');
   await Firebase.initializeApp();
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
+
   runApp(const MyApp());
 }
 
@@ -36,6 +43,7 @@ class MyApp extends StatelessWidget {
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'Flutter Onboarding Example',
+            onGenerateRoute: AppRoutes.onGenerateRoute,
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(
                 seedColor: const Color(0xFF113F67),
@@ -82,30 +90,36 @@ class _LauncherState extends State<Launcher> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    // Your app initialization logic
+    final isFirst = await isFirstLaunch();
+
+    // Remove splash screen after initialization
+    FlutterNativeSplash.remove();
+
+    // Navigate based on first launch
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) =>
+                  isFirst ? const OnboardingScreen() : const MainHomeScreen(),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: isFirstLaunch(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF113F67),
-            body: Center(child: CircularProgressIndicator(color: Colors.white)),
-          );
-        }
-        if (snapshot.data == true) {
-          return OnboardingScreen(
-            onFinish: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('seenOnboarding', true);
-              if (mounted) {
-                setState(() {});
-              }
-            },
-          );
-        } else {
-          return const MainHomeScreen();
-        }
-      },
+    return const Scaffold(
+      backgroundColor: Color(0xFF113F67),
+      body: Center(child: CircularProgressIndicator(color: Colors.white)),
     );
   }
 }

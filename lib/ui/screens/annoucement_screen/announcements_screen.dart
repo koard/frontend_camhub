@@ -22,7 +22,7 @@ class AnnouncementScreen extends StatelessWidget {
         ),
       ),
       body: FutureBuilder<List<Announcement>>(
-        future: AnnouncementService.fetchAll(),
+        future: AnnouncementService().getAnnouncements(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -60,10 +60,65 @@ class AnnouncementScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.announcement,
-                          size: 36.sp,
-                          color: Colors.orange,
+                        // Display image if imageUrl is available, otherwise show icon
+                        Container(
+                          height: 80.h,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8.r),
+                            color: Colors.grey[200],
+                          ),
+                          child:
+                              item.imageUrl != null && item.imageUrl!.isNotEmpty
+                                  ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8.r),
+                                    child: Image.network(
+                                      item.imageUrl!,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (
+                                        context,
+                                        child,
+                                        loadingProgress,
+                                      ) {
+                                        if (loadingProgress == null)
+                                          return child;
+                                        return Center(
+                                          child: SizedBox(
+                                            width: 24.w,
+                                            height: 24.w,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              value:
+                                                  loadingProgress
+                                                              .expectedTotalBytes !=
+                                                          null
+                                                      ? loadingProgress
+                                                              .cumulativeBytesLoaded /
+                                                          loadingProgress
+                                                              .expectedTotalBytes!
+                                                      : null,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder: (
+                                        context,
+                                        error,
+                                        stackTrace,
+                                      ) {
+                                        return Icon(
+                                          Icons.announcement,
+                                          size: 36.sp,
+                                          color: Colors.orange,
+                                        );
+                                      },
+                                    ),
+                                  )
+                                  : Icon(
+                                    Icons.announcement,
+                                    size: 36.sp,
+                                    color: Colors.orange,
+                                  ),
                         ),
                         SizedBox(height: 8.h),
                         Text(
@@ -81,15 +136,6 @@ class AnnouncementScreen extends StatelessWidget {
                           style: TextStyle(fontSize: 12.sp),
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
-                        ),
-                        const Spacer(),
-                        Text(
-                          "ประกาศโดย: ${item.author ?? '-'}",
-                          style: TextStyle(fontSize: 12.sp),
-                        ),
-                        Text(
-                          "วันที่: ${item.date ?? '-'}",
-                          style: TextStyle(fontSize: 12.sp),
                         ),
                       ],
                     ),
