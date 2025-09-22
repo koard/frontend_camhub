@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'dart:async';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_navigation_flutter/google_navigation_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -11,81 +12,106 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  // Mock: อาคาร LRC (Learning Resource Center) PSU Hatyai
-  final LatLng targetBuilding = LatLng(7.006265, 100.499902); // LRC PSU Hatyai
-  LatLng? currentPosition;
+  GoogleMapViewController? _controller;
+  bool _sessionInitialized = false;
+  Position? _currentPosition;
+  CameraPosition? _initialCamera;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    _prepare();
   }
 
-  Future<void> _getCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
+  Future<void> _prepare() async {
+    await _requestPermissions();
+    await _getDeviceLocation();
+    await _initializeSession();
+  }
 
+  Future<void> _requestPermissions() async {
+    // Use permission_handler for coarse/fine location (Android) and WhenInUse location (iOS) at runtime.
+    final status = await Permission.location.request();
+    if (status.isDenied || status.isPermanentlyDenied) {
+      // Show simple dialog to inform user.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ต้องเปิดสิทธิ์การเข้าถึงตำแหน่งเพื่อใช้งานแผนที่')),
+        );
+      }
+    }
+  }
+
+  Future<void> _getDeviceLocation() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.deniedForever ||
-          permission == LocationPermission.denied) {
-        return; // ✅ Fixed: wrapped in block
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
       }
     }
+    final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+    setState(() => _currentPosition = pos);
+  }
 
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+  Future<void> _initializeSession() async {
+    if (!await GoogleMapsNavigator.areTermsAccepted()) {
+      await GoogleMapsNavigator.showTermsAndConditionsDialog(
+        'Campus Hub',
+        'PSU',
+      );
+    }
+    await GoogleMapsNavigator.initializeNavigationSession(
+      taskRemovedBehavior: TaskRemovedBehavior.continueService,
     );
+    if (_currentPosition != null) {
+      _initialCamera = CameraPosition(
+        target: LatLng(latitude: _currentPosition!.latitude, longitude: _currentPosition!.longitude),
+        zoom: 16,
+      );
+    }
+    setState(() => _sessionInitialized = true);
+  }
 
-    setState(() {
-      currentPosition = LatLng(position.latitude, position.longitude);
-    });
+  void _onMapViewCreated(GoogleMapViewController controller) {
+    _controller = controller;
+    _controller?.setMyLocationEnabled(true);
+  }
+
+  @override
+  void dispose() {
+    if (_sessionInitialized) {
+      GoogleMapsNavigator.cleanup();
+    }
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('แผนที่มหาวิทยาลัย')),
-      body: currentPosition == null
+      appBar: AppBar(title: const Text('แผนที่ (Google Navigation SDK)')),
+      body: !_sessionInitialized || _initialCamera == null
           ? const Center(child: CircularProgressIndicator())
-          : FlutterMap(
-              options: MapOptions(center: currentPosition, zoom: 16.0),
-              children: [
-                TileLayer(
-                  urlTemplate:
-                      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  subdomains: const ['a', 'b', 'c'],
-                  userAgentPackageName: 'com.example.app',
-                ),
-                MarkerLayer(
-                  markers: [
-                    // ตำแหน่งปัจจุบัน
-                    Marker(
-                      width: 80,
-                      height: 80,
-                      point: currentPosition!,
-                      child: const Icon(
-                        Icons.my_location,
-                        color: Colors.blue,
-                        size: 40,
-                      ),
-                    ),
-                    // Mock อาคารเป้าหมาย (LRC)
-                    Marker(
-                      width: 80,
-                      height: 80,
-                      point: targetBuilding,
-                      child: const Icon(
-                        Icons.location_on,
-                        color: Colors.red,
-                        size: 40,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+      : GoogleMapsMapView(
+        onViewCreated: _onMapViewCreated,
+              initialCameraPosition: _initialCamera!,
             ),
+      floatingActionButton: (_controller != null)
+          ? FloatingActionButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('ตัวอย่าง map view – ยังไม่เริ่มนำทาง'),
+                  ),
+                );
+              },
+              child: const Icon(Icons.navigation),
+            )
+          : null,
     );
   }
 }

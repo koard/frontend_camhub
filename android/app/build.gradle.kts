@@ -3,8 +3,8 @@ plugins {
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services") version "4.4.1"
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
-
 
 android {
     namespace = "com.example.campusapp"
@@ -14,6 +14,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // Required for google_navigation_flutter when minSdk < 34
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -26,15 +28,13 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 23
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -42,4 +42,17 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Desugaring library for java.time APIs etc.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
+}
+
+// Configure secrets plugin
+secrets {
+    // File ignored from VCS (create manually): contains real keys
+    propertiesFileName = "secrets.properties"
+    // Fallback (commit this): contains DEFAULT_* placeholders so build won't fail
+    defaultPropertiesFileName = "local.defaults.properties"
 }
