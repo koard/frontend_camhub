@@ -15,27 +15,29 @@ class MapScreen extends StatefulWidget {
 enum MapMode { map, navigating }
 
 class _MapScreenState extends State<MapScreen> {
-  // Controllers
-  nav.GoogleNavigationViewController? _navController; // when in navigation mode
-  nav.GoogleMapViewController? _mapViewController; // controller for map (explore) mode
+  nav.GoogleNavigationViewController? _navController;
+  nav.GoogleMapViewController? _mapViewController;
 
-  // State
   bool _sessionInitialized = false;
-  MapMode _mode = MapMode.map; // current UI mode
+  MapMode _mode = MapMode.map;
   Position? _currentPosition;
-  nav.CameraPosition? _initialCamera; // camera for nav map view
-  // Marker handling (navigation SDK markers, not google_maps_flutter)
+  nav.CameraPosition? _initialCamera;
   final List<nav.Marker> _markers = <nav.Marker>[];
+  // Markers & mapping
+  //  _markerIdToFaculty: markerId (SDK) -> FacultyDestination
+  //  _facultyIdToMarker: faculty.id -> marker (for showing its info window)
   final Map<String, FacultyDestination> _markerIdToFaculty = {};
+  final Map<String, nav.Marker> _facultyIdToMarker = {};
 
-  // Navigation info subscription
-  StreamSubscription<nav.NavInfoEvent>? _navInfoSub;
-  nav.NavInfo? _navInfo;
+  StreamSubscription<nav.NavInfoEvent>? _navInfoSub; // for camera follow
+  DateTime? _lastFollowUpdate;
 
-  // Faculty list & selected destination (future expandable)
-  // In future, fetch from backend or cached repository service.
   final List<FacultyDestination> _faculties = facultyDestinationsSeed;
-  FacultyDestination? _selectedFaculty; // user choice in map mode
+  FacultyDestination? _selectedFaculty;
+  bool _simulateRoute = false; // simulate movement when starting navigation
+  // Chip auto-scroll
+  final ScrollController _chipsScrollController = ScrollController();
+  final Map<String, GlobalKey> _chipKeys = {}; // faculty.id -> key for size/position
 
   @override
   void initState() {
@@ -50,7 +52,6 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _requestPermissions() async {
-    // Use permission_handler for coarse/fine location (Android) and WhenInUse location (iOS) at runtime.
     final status = await Permission.location.request();
     if (status.isDenied || status.isPermanentlyDenied) {
       // Show simple dialog to inform user.
@@ -77,6 +78,15 @@ class _MapScreenState extends State<MapScreen> {
       final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
       setState(() => _currentPosition = pos);
+      if (_initialCamera == null) {
+        setState(() {
+          _initialCamera = nav.CameraPosition(
+            target: nav.LatLng(latitude: pos.latitude, longitude: pos.longitude),
+            zoom: 17,
+          );
+        });
+      }
+      _focusCameraOnCurrentLocation();
     } catch (_) {}
   }
 
@@ -93,32 +103,31 @@ class _MapScreenState extends State<MapScreen> {
     if (_currentPosition != null) {
       _initialCamera = nav.CameraPosition(
         target: nav.LatLng(latitude: _currentPosition!.latitude, longitude: _currentPosition!.longitude),
-        zoom: 16,
+        zoom: 17,
       );
-    } else {
-      _initialCamera = const nav.CameraPosition(
-        target: nav.LatLng(latitude: 7.006000, longitude: 100.498000),
-        zoom: 15,
-      );
-    }
+  }
     setState(() => _sessionInitialized = true);
-    // No markers (removed google_maps_flutter). Could add overlay later.
   }
 
   // Start navigation to destination
-  Future<void> _startNavigation({bool simulate = true}) async {
+  Future<void> _startNavigation({bool simulate = false}) async {
     if (!_sessionInitialized) return;
     if (_mode == MapMode.navigating) return;
 
-    // fall back to default engineering faculty if nothing selected yet
-    final targetFaculty = _selectedFaculty ?? _faculties.first;
+  final targetFaculty = _selectedFaculty; // no default; user must choose
 
-    // Optionally simulate starting user location if we still don't have one
-    if (_currentPosition == null && simulate) {
-  await nav.GoogleMapsNavigator.simulator.setUserLocation(const nav.LatLng(latitude: 7.006000, longitude: 100.498000));
+    if (_currentPosition == null) {
+      await _getDeviceLocation();
+    }
+    if (_currentPosition == null || targetFaculty == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(targetFaculty == null ? 'กรุณาเลือกปลายทางก่อนเริ่มนำทาง' : 'ยังไม่ทราบตำแหน่งปัจจุบัน โปรดลองอีกครั้ง')),
+        );
+      }
+      return;
     }
 
-    // Set destinations (single waypoint)
     final destinations = nav.Destinations(
       waypoints: <nav.NavigationWaypoint>[
         nav.NavigationWaypoint.withLatLngTarget(
@@ -137,6 +146,7 @@ class _MapScreenState extends State<MapScreen> {
         await nav.GoogleMapsNavigator.simulator.simulateLocationsAlongExistingRoute();
       }
       await _navController?.followMyLocation(nav.CameraPerspective.tilted);
+      _focusCameraOnCurrentLocation(follow: true);
       setState(() => _mode = MapMode.navigating);
     } else {
       if (mounted) {
@@ -147,23 +157,29 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _setupNavListeners() async {
     _clearNavListeners();
-  _navInfoSub = nav.GoogleMapsNavigator.setNavInfoListener(
+    _navInfoSub = nav.GoogleMapsNavigator.setNavInfoListener(
       (event) {
         if (!mounted) return;
-        setState(() => _navInfo = event.navInfo);
+        final now = DateTime.now();
+        if (_mode == MapMode.navigating &&
+            (_lastFollowUpdate == null || now.difference(_lastFollowUpdate!) > const Duration(milliseconds: 1500))) {
+          _lastFollowUpdate = now;
+          _navController?.followMyLocation(nav.CameraPerspective.tilted);
+        }
       },
-      numNextStepsToPreview: 25,
+      numNextStepsToPreview: 10,
     );
   }
 
   Future<void> _stopNavigation() async {
+    try {
+      await nav.GoogleMapsNavigator.stopGuidance();
+      // Optionally also clear route:
+      // await nav.GoogleMapsNavigator.clearDestinations();
+    } catch (_) {}
     _clearNavListeners();
-    _navInfo = null;
-    if (_mode == MapMode.navigating) {
-      await nav.GoogleMapsNavigator.cleanup();
+    if (mounted) {
       setState(() => _mode = MapMode.map);
-      // Re-init session to allow future nav without rebuilding widget
-      await nav.GoogleMapsNavigator.initializeNavigationSession(taskRemovedBehavior: nav.TaskRemovedBehavior.continueService);
     }
   }
 
@@ -177,21 +193,21 @@ class _MapScreenState extends State<MapScreen> {
     controller.setMyLocationEnabled(true);
   }
 
-  // Marker logic removed (using only navigation SDK map view in map mode)
   void _onMapModeViewCreated(nav.GoogleMapViewController controller) async {
     _mapViewController = controller;
     await controller.setMyLocationEnabled(true);
-    // Add markers once (if not already)
-    if (_markers.isEmpty) {
-      await _addFacultyMarkers();
-    }
+    // Always (re)add markers when the map view is (re)created to keep ID mappings fresh
+    await _addFacultyMarkers();
+    _focusCameraOnCurrentLocation();
   }
 
   Future<void> _addFacultyMarkers() async {
     if (_mapViewController == null) return;
+    // Clear local caches before adding new markers (old controller was disposed when switching views)
+    _markers.clear();
+    _markerIdToFaculty.clear();
+    _facultyIdToMarker.clear();
     final List<nav.MarkerOptions> optionsList = _faculties.map((f) {
-      final markerId = 'faculty_${f.id}';
-      _markerIdToFaculty[markerId] = f;
       return nav.MarkerOptions(
         position: f.coordinate,
         infoWindow: nav.InfoWindow(title: f.nameTh, snippet: f.nameEn ?? ''),
@@ -200,18 +216,88 @@ class _MapScreenState extends State<MapScreen> {
       );
     }).toList();
     final added = await _mapViewController!.addMarkers(optionsList);
-    _markers.clear();
-    for (final m in added) {
-      if (m != null) _markers.add(m);
+    for (int i = 0; i < added.length; i++) {
+      final m = added[i];
+      if (m == null) continue;
+      _markers.add(m);
+      final id = _extractMarkerId(m);
+      if (id != null) _markerIdToFaculty[id] = _faculties[i];
+      _facultyIdToMarker[_faculties[i].id] = m;
     }
     setState(() {});
   }
 
+  String? _extractMarkerId(nav.Marker m) {
+    try {
+      final dyn = m as dynamic;
+      final List<dynamic> candidates = [];
+      try {
+        final v = dyn.id;
+        if (v != null) candidates.add(v);
+      } catch (_) {}
+      try {
+        final v = dyn.markerId;
+        if (v != null) candidates.add(v);
+        try {
+          final inner = dyn.markerId?.value;
+          if (inner != null) candidates.add(inner);
+        } catch (_) {}
+      } catch (_) {}
+      if (candidates.isEmpty) return null;
+      return candidates.first.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Animate or move camera to current device location (if available).
+  Future<void> _focusCameraOnCurrentLocation({bool follow = false}) async {
+    if (_currentPosition == null) return;
+    final pos = nav.LatLng(
+        latitude: _currentPosition!.latitude, longitude: _currentPosition!.longitude);
+    final cam = nav.CameraUpdate.newCameraPosition(nav.CameraPosition(target: pos, zoom: 17));
+    try {
+      if (_mode == MapMode.navigating && _navController != null) {
+        await _navController!.animateCamera(cam);
+        if (follow) {
+          await _navController!.followMyLocation(nav.CameraPerspective.tilted);
+        }
+      } else if (_mapViewController != null) {
+        await _mapViewController!.animateCamera(cam);
+      }
+    } catch (_) {}
+  }
+
+  /// Marker tapped -> select faculty & focus camera
   void _onMarkerClicked(String markerId) {
     final faculty = _markerIdToFaculty[markerId];
-    if (faculty != null) {
-      setState(() => _selectedFaculty = faculty);
+    if (faculty == null) return; // No mapping (should not normally happen)
+    if (_selectedFaculty?.id == faculty.id) {
+      // Already selected; still show info window again for user feedback.
+      _focusCameraOnFaculty(faculty);
+      _scrollSelectedChipIntoView();
+      return;
     }
+    setState(() => _selectedFaculty = faculty);
+    _focusCameraOnFaculty(faculty);
+    _scrollSelectedChipIntoView();
+  }
+
+  Future<void> _focusCameraOnFaculty(FacultyDestination f) async {
+    if (_mapViewController == null) return;
+    final update = nav.CameraUpdate.newCameraPosition(
+      nav.CameraPosition(target: f.coordinate, zoom: 17),
+    );
+    try {
+      await _mapViewController!.animateCamera(update);
+      final marker = _facultyIdToMarker[f.id];
+      if (marker != null) {
+        try {
+          final dyn = marker as dynamic;
+          await dyn.showInfoWindow();
+        } catch (_) {}
+      }
+    } catch (_) {}
   }
 
   @override
@@ -220,70 +306,36 @@ class _MapScreenState extends State<MapScreen> {
     if (_mode == MapMode.navigating || _sessionInitialized) {
       nav.GoogleMapsNavigator.cleanup();
     }
+    _chipsScrollController.dispose();
     super.dispose();
   }
 
-  Widget _buildInfoBar() {
-    if (_navInfo == null) return const SizedBox.shrink();
-    final nav = _navInfo!;
-    return Container(
-      width: double.infinity,
-      color: Colors.green.shade700,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (nav.timeToFinalDestinationSeconds != null && nav.distanceToFinalDestinationMeters != null)
-            Text(
-              'ถึงปลายทางใน ~${_formatDuration(nav.timeToFinalDestinationSeconds!)} (${_formatDistance(nav.distanceToFinalDestinationMeters!)})',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          if (nav.currentStep != null)
-            Text(
-              'ขั้นต่อไป: ${nav.currentStep!.fullInstructions}',
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDuration(int seconds) {
-    final d = Duration(seconds: seconds);
-    if (d.inHours > 0) {
-      final h = d.inHours;
-      final m = d.inMinutes.remainder(60);
-      return '${h}ชม ${m}นาที';
-    }
-    if (d.inMinutes >= 1) {
-      return '${d.inMinutes}นาที';
-    }
-    return '${d.inSeconds}วิ';
-  }
-
-  String _formatDistance(int meters) {
-    if (meters >= 1000) {
-      return '${(meters / 1000).toStringAsFixed(1)} กม.';
-    }
-    return '$meters ม.';
-  }
+  // Removed legacy custom navigation bar & helpers; using built-in Google UI.
 
   @override
   Widget build(BuildContext context) {
     final bool showNavigationView = _mode == MapMode.navigating; // switch view when nav starts
     return Scaffold(
-      appBar: AppBar(title: const Text('แผนที่ & นำทาง')),
+      appBar: AppBar(
+        title: const Text('แผนที่'),
+      ),
       body: !_sessionInitialized || _initialCamera == null
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 if (showNavigationView)
                   Expanded(
-                    child: nav.GoogleMapsNavigationView(
-                      onViewCreated: _onNavigationViewCreated,
-                      initialNavigationUIEnabledPreference: nav.NavigationUIEnabledPreference.disabled,
+                    child: Stack(
+                      children: [
+                        nav.GoogleMapsNavigationView(
+                          onViewCreated: _onNavigationViewCreated,
+                        ),
+                        Positioned(
+                          right: 12,
+                          bottom: 12,
+                          child: _buildStopNavButton(),
+                        ),
+                      ],
                     ),
                   )
                 else
@@ -304,23 +356,64 @@ class _MapScreenState extends State<MapScreen> {
                       ],
                     ),
                   ),
-                _buildInfoBar(),
               ],
             ),
-      floatingActionButton: !_sessionInitialized
-          ? null
-          : (_mode != MapMode.navigating
-              ? FloatingActionButton.extended(
-                  onPressed: () => _startNavigation(simulate: true),
-                  icon: const Icon(Icons.directions),
-                  label: const Text('เริ่มนำทาง'),
-                )
-              : FloatingActionButton.extended(
-                  backgroundColor: Colors.red,
-                  onPressed: _stopNavigation,
-                  icon: const Icon(Icons.stop),
-                  label: const Text('หยุดนำทาง'),
-                )),
+      floatingActionButton: null,
+    );
+  }
+
+  /// Floating stop navigation pill (blends with dark nav UI)
+  Widget _buildStopNavButton() {
+    return SafeArea(
+      top: false,
+      child: GestureDetector(
+        onTap: _stopNavigation,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.55),
+            borderRadius: BorderRadius.circular(40),
+            border: Border.all(color: Colors.white.withOpacity(0.12), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade600,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.6),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+              const Text(
+                'หยุดนำทาง',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -353,25 +446,47 @@ class _MapScreenState extends State<MapScreen> {
               children: [
                 const Icon(Icons.school, color: Colors.blueAccent),
                 const SizedBox(width: 8),
-                const Text(
-                  'เลือกปลายทาง (ทดลอง)',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                const Expanded(
+                  child: Text(
+                    'เลือกปลายทาง',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                _buildSimToggle(),
+                ElevatedButton.icon(
+                  onPressed: _sessionInitialized && _selectedFaculty != null
+                      ? () => _startNavigation(simulate: _simulateRoute)
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.navigation, size: 18),
+                  label: const Text('เริ่มนำทาง'),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             SingleChildScrollView(
+              controller: _chipsScrollController,
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: _faculties.map((f) {
-                  final bool selected = (_selectedFaculty?.id ?? _faculties.first.id) == f.id;
+                children: _faculties.asMap().entries.map((entry) {
+                  final f = entry.value;
+                  final bool selected = _selectedFaculty?.id == f.id;
+                  final key = _chipKeys.putIfAbsent(f.id, () => GlobalKey());
                   return Padding(
+                    key: key,
                     padding: const EdgeInsets.only(right: 8.0),
                     child: ChoiceChip(
                       label: Text(f.nameTh),
                       selected: selected,
                       onSelected: (_) {
                         setState(() => _selectedFaculty = f);
+                        _focusCameraOnFaculty(f);
+                        _scrollSelectedChipIntoView();
                       },
                       selectedColor: Colors.blueAccent,
                       labelStyle: TextStyle(color: selected ? Colors.white : Colors.black87),
@@ -380,13 +495,121 @@ class _MapScreenState extends State<MapScreen> {
                 }).toList(),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              _selectedFaculty?.nameEn ?? _faculties.first.nameEn ?? '',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Ensure currently selected chip is visible (tries to center it if possible)
+  void _scrollSelectedChipIntoView() {
+    if (!_chipsScrollController.hasClients) return;
+    final selected = _selectedFaculty;
+    if (selected == null) return;
+    final key = _chipKeys[selected.id];
+    if (key == null) return;
+    // Use postFrame to ensure layout complete before measuring
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = key.currentContext;
+      if (ctx == null || !_chipsScrollController.hasClients) return;
+      final box = ctx.findRenderObject() as RenderBox?;
+      if (box == null) return;
+      final position = box.localToGlobal(Offset.zero);
+      final size = box.size;
+      // Get list viewport bounds
+      final listPosition = (_chipsScrollController.position.context.storageContext.findRenderObject()) as RenderBox?;
+      if (listPosition == null) return;
+      final listLeft = listPosition.localToGlobal(Offset.zero).dx;
+      final listRight = listLeft + listPosition.size.width;
+      final chipLeft = position.dx;
+      final chipRight = chipLeft + size.width;
+      double targetOffset = _chipsScrollController.offset;
+      const edgePadding = 24.0; // comfortable margin
+      // If chip out of left bound
+      if (chipLeft < listLeft + edgePadding) {
+        targetOffset -= (listLeft + edgePadding - chipLeft);
+      } else if (chipRight > listRight - edgePadding) {
+        targetOffset += (chipRight - (listRight - edgePadding));
+      } else {
+        return; // already fully visible
+      }
+      targetOffset = targetOffset.clamp(
+        0,
+        _chipsScrollController.position.maxScrollExtent,
+      );
+      _chipsScrollController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  Widget _buildSimToggle() {
+    return GestureDetector(
+      onTap: () => setState(() => _simulateRoute = !_simulateRoute),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        margin: const EdgeInsets.only(right: 8),
+        decoration: BoxDecoration(
+          color: _simulateRoute ? Colors.orange.shade600 : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: _simulateRoute
+              ? [
+                  BoxShadow(
+                    color: Colors.orange.withOpacity(0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  )
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _simulateRoute ? Icons.play_circle_fill : Icons.play_circle_outline,
+              size: 18,
+              color: _simulateRoute ? Colors.white : Colors.black87,
             ),
-            // Future: show distance from current location to selected faculty, markers, tap map to change.
-            // Future: convert to DraggableScrollableSheet listing all faculties with search.
+            const SizedBox(width: 4),
+            Text(
+              'Sim',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _simulateRoute ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(width: 4),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 26,
+              height: 14,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: _simulateRoute ? Colors.white.withOpacity(0.9) : Colors.black.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              alignment: _simulateRoute ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: _simulateRoute ? Colors.orange.shade700 : Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

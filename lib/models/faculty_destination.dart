@@ -23,13 +23,13 @@ const facultyDestinationsSeed = <FacultyDestination>[
     id: 'eng',
     nameTh: 'คณะวิศวกรรมศาสตร์',
     nameEn: 'Faculty of Engineering',
-    coordinate: LatLng(latitude: 7.005094, longitude: 100.495329),
+    coordinate: LatLng(latitude: 7.006289565879179, longitude: 100.50111598306944),
   ),
   FacultyDestination(
     id: 'sci',
     nameTh: 'คณะวิทยาศาสตร์',
     nameEn: 'Faculty of Science',
-    coordinate: LatLng(latitude: 7.010200, longitude: 100.497900), // TODO: verify exact building coordinate
+    coordinate: LatLng(latitude: 7.008032439042828, longitude: 100.49723894261248),
   ),
   FacultyDestination(
     id: 'mgmt',
