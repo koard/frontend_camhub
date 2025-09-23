@@ -3,7 +3,7 @@ plugins {
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services") version "4.4.1"
-    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin") version "2.0.1"
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
 
 android {
@@ -31,6 +31,8 @@ android {
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // for all languages supported by the Navigation SDK.
+        multiDexEnabled = true
     }
 
     buildTypes {
@@ -45,8 +47,10 @@ flutter {
 }
 
 dependencies {
+    implementation("com.google.android.libraries.navigation:navigation:6.2.2")
     // Desugaring library for java.time APIs etc.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
+    
 }
 
 // Configure secrets plugin

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_navigation_flutter/google_navigation_flutter.dart';
+import 'package:google_navigation_flutter/google_navigation_flutter.dart' as nav;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:campusapp/models/faculty_destination.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -11,25 +12,30 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
+enum MapMode { map, navigating }
+
 class _MapScreenState extends State<MapScreen> {
   // Controllers
-  GoogleNavigationViewController? _navController; // when in navigation mode
+  nav.GoogleNavigationViewController? _navController; // when in navigation mode
+  nav.GoogleMapViewController? _mapViewController; // controller for map (explore) mode
 
   // State
   bool _sessionInitialized = false;
-  bool _navigationRunning = false;
+  MapMode _mode = MapMode.map; // current UI mode
   Position? _currentPosition;
-  CameraPosition? _initialCamera;
+  nav.CameraPosition? _initialCamera; // camera for nav map view
+  // Marker handling (navigation SDK markers, not google_maps_flutter)
+  final List<nav.Marker> _markers = <nav.Marker>[];
+  final Map<String, FacultyDestination> _markerIdToFaculty = {};
 
   // Navigation info subscription
-  StreamSubscription<NavInfoEvent>? _navInfoSub;
-  NavInfo? _navInfo;
+  StreamSubscription<nav.NavInfoEvent>? _navInfoSub;
+  nav.NavInfo? _navInfo;
 
-  // Destination (Faculty of Engineering PSU Hat Yai) mock coordinates
-  static const LatLng _destFacultyEng = LatLng(
-    latitude: 7.005094, // approximate
-    longitude: 100.495329, // approximate
-  );
+  // Faculty list & selected destination (future expandable)
+  // In future, fetch from backend or cached repository service.
+  final List<FacultyDestination> _faculties = facultyDestinationsSeed;
+  FacultyDestination? _selectedFaculty; // user choice in map mode
 
   @override
   void initState() {
@@ -75,60 +81,63 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _initializeSession() async {
-    if (!await GoogleMapsNavigator.areTermsAccepted()) {
-      await GoogleMapsNavigator.showTermsAndConditionsDialog(
+    if (!await nav.GoogleMapsNavigator.areTermsAccepted()) {
+      await nav.GoogleMapsNavigator.showTermsAndConditionsDialog(
         'Campus Hub',
         'PSU',
       );
     }
-    await GoogleMapsNavigator.initializeNavigationSession(
-      taskRemovedBehavior: TaskRemovedBehavior.continueService,
+    await nav.GoogleMapsNavigator.initializeNavigationSession(
+      taskRemovedBehavior: nav.TaskRemovedBehavior.continueService,
     );
     if (_currentPosition != null) {
-      _initialCamera = CameraPosition(
-        target: LatLng(latitude: _currentPosition!.latitude, longitude: _currentPosition!.longitude),
+      _initialCamera = nav.CameraPosition(
+        target: nav.LatLng(latitude: _currentPosition!.latitude, longitude: _currentPosition!.longitude),
         zoom: 16,
       );
     } else {
-      // fallback to campus center approx if location not ready yet
-      _initialCamera = const CameraPosition(
-        target: LatLng(latitude: 7.006000, longitude: 100.498000),
+      _initialCamera = const nav.CameraPosition(
+        target: nav.LatLng(latitude: 7.006000, longitude: 100.498000),
         zoom: 15,
       );
     }
     setState(() => _sessionInitialized = true);
+    // No markers (removed google_maps_flutter). Could add overlay later.
   }
 
   // Start navigation to destination
   Future<void> _startNavigation({bool simulate = true}) async {
     if (!_sessionInitialized) return;
-    if (_navigationRunning) return;
+    if (_mode == MapMode.navigating) return;
+
+    // fall back to default engineering faculty if nothing selected yet
+    final targetFaculty = _selectedFaculty ?? _faculties.first;
 
     // Optionally simulate starting user location if we still don't have one
     if (_currentPosition == null && simulate) {
-      await GoogleMapsNavigator.simulator.setUserLocation(const LatLng(latitude: 7.006000, longitude: 100.498000));
+  await nav.GoogleMapsNavigator.simulator.setUserLocation(const nav.LatLng(latitude: 7.006000, longitude: 100.498000));
     }
 
     // Set destinations (single waypoint)
-    final destinations = Destinations(
-      waypoints: <NavigationWaypoint>[
-        NavigationWaypoint.withLatLngTarget(
-          title: 'วิศวกรรมศาสตร์ ม.อ. หาดใหญ่',
-          target: _destFacultyEng,
+    final destinations = nav.Destinations(
+      waypoints: <nav.NavigationWaypoint>[
+        nav.NavigationWaypoint.withLatLngTarget(
+          title: targetFaculty.nameTh,
+          target: targetFaculty.coordinate,
         ),
       ],
-      displayOptions: NavigationDisplayOptions(showDestinationMarkers: true),
+      displayOptions: nav.NavigationDisplayOptions(showDestinationMarkers: true),
     );
 
-    final status = await GoogleMapsNavigator.setDestinations(destinations);
-    if (status == NavigationRouteStatus.statusOk) {
+    final status = await nav.GoogleMapsNavigator.setDestinations(destinations);
+    if (status == nav.NavigationRouteStatus.statusOk) {
       await _setupNavListeners();
-      await GoogleMapsNavigator.startGuidance();
+      await nav.GoogleMapsNavigator.startGuidance();
       if (simulate) {
-        await GoogleMapsNavigator.simulator.simulateLocationsAlongExistingRoute();
+        await nav.GoogleMapsNavigator.simulator.simulateLocationsAlongExistingRoute();
       }
-      await _navController?.followMyLocation(CameraPerspective.tilted);
-      setState(() => _navigationRunning = true);
+      await _navController?.followMyLocation(nav.CameraPerspective.tilted);
+      setState(() => _mode = MapMode.navigating);
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ไม่สามารถเริ่มนำทางได้')));
@@ -138,7 +147,7 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _setupNavListeners() async {
     _clearNavListeners();
-    _navInfoSub = GoogleMapsNavigator.setNavInfoListener(
+  _navInfoSub = nav.GoogleMapsNavigator.setNavInfoListener(
       (event) {
         if (!mounted) return;
         setState(() => _navInfo = event.navInfo);
@@ -150,11 +159,11 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _stopNavigation() async {
     _clearNavListeners();
     _navInfo = null;
-    if (_navigationRunning) {
-      await GoogleMapsNavigator.cleanup();
-      setState(() => _navigationRunning = false);
+    if (_mode == MapMode.navigating) {
+      await nav.GoogleMapsNavigator.cleanup();
+      setState(() => _mode = MapMode.map);
       // Re-init session to allow future nav without rebuilding widget
-      await GoogleMapsNavigator.initializeNavigationSession(taskRemovedBehavior: TaskRemovedBehavior.continueService);
+      await nav.GoogleMapsNavigator.initializeNavigationSession(taskRemovedBehavior: nav.TaskRemovedBehavior.continueService);
     }
   }
 
@@ -163,21 +172,53 @@ class _MapScreenState extends State<MapScreen> {
     _navInfoSub = null;
   }
 
-  void _onMapViewCreated(GoogleMapViewController controller) {
-    // Use map view controller to animate to destination before navigation.
+  void _onNavigationViewCreated(nav.GoogleNavigationViewController controller) {
+    _navController = controller;
     controller.setMyLocationEnabled(true);
   }
 
-  void _onNavigationViewCreated(GoogleNavigationViewController controller) {
-    _navController = controller;
-    controller.setMyLocationEnabled(true);
+  // Marker logic removed (using only navigation SDK map view in map mode)
+  void _onMapModeViewCreated(nav.GoogleMapViewController controller) async {
+    _mapViewController = controller;
+    await controller.setMyLocationEnabled(true);
+    // Add markers once (if not already)
+    if (_markers.isEmpty) {
+      await _addFacultyMarkers();
+    }
+  }
+
+  Future<void> _addFacultyMarkers() async {
+    if (_mapViewController == null) return;
+    final List<nav.MarkerOptions> optionsList = _faculties.map((f) {
+      final markerId = 'faculty_${f.id}';
+      _markerIdToFaculty[markerId] = f;
+      return nav.MarkerOptions(
+        position: f.coordinate,
+        infoWindow: nav.InfoWindow(title: f.nameTh, snippet: f.nameEn ?? ''),
+        visible: true,
+        draggable: false,
+      );
+    }).toList();
+    final added = await _mapViewController!.addMarkers(optionsList);
+    _markers.clear();
+    for (final m in added) {
+      if (m != null) _markers.add(m);
+    }
+    setState(() {});
+  }
+
+  void _onMarkerClicked(String markerId) {
+    final faculty = _markerIdToFaculty[markerId];
+    if (faculty != null) {
+      setState(() => _selectedFaculty = faculty);
+    }
   }
 
   @override
   void dispose() {
     _clearNavListeners();
-    if (_navigationRunning || _sessionInitialized) {
-      GoogleMapsNavigator.cleanup();
+    if (_mode == MapMode.navigating || _sessionInitialized) {
+      nav.GoogleMapsNavigator.cleanup();
     }
     super.dispose();
   }
@@ -231,7 +272,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool showNavigationView = _navigationRunning; // switch view when nav starts
+    final bool showNavigationView = _mode == MapMode.navigating; // switch view when nav starts
     return Scaffold(
       appBar: AppBar(title: const Text('แผนที่ & นำทาง')),
       body: !_sessionInitialized || _initialCamera == null
@@ -240,16 +281,27 @@ class _MapScreenState extends State<MapScreen> {
               children: [
                 if (showNavigationView)
                   Expanded(
-                    child: GoogleMapsNavigationView(
+                    child: nav.GoogleMapsNavigationView(
                       onViewCreated: _onNavigationViewCreated,
-                      initialNavigationUIEnabledPreference: NavigationUIEnabledPreference.disabled,
+                      initialNavigationUIEnabledPreference: nav.NavigationUIEnabledPreference.disabled,
                     ),
                   )
                 else
                   Expanded(
-                    child: GoogleMapsMapView(
-                      onViewCreated: _onMapViewCreated,
-                      initialCameraPosition: _initialCamera!,
+                    child: Stack(
+                      children: [
+                        nav.GoogleMapsMapView(
+                          onViewCreated: _onMapModeViewCreated,
+                          onMarkerClicked: _onMarkerClicked,
+                          initialCameraPosition: _initialCamera!,
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: _buildDestinationSelectorBar(),
+                        ),
+                      ],
                     ),
                   ),
                 _buildInfoBar(),
@@ -257,7 +309,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
       floatingActionButton: !_sessionInitialized
           ? null
-          : (!_navigationRunning
+          : (_mode != MapMode.navigating
               ? FloatingActionButton.extended(
                   onPressed: () => _startNavigation(simulate: true),
                   icon: const Icon(Icons.directions),
@@ -269,6 +321,75 @@ class _MapScreenState extends State<MapScreen> {
                   icon: const Icon(Icons.stop),
                   label: const Text('หยุดนำทาง'),
                 )),
+    );
+  }
+
+  /// Bottom selector bar shown only in map mode for choosing a faculty.
+  /// Currently we only have one seed faculty but UI is built to scale.
+  Widget _buildDestinationSelectorBar() {
+    // Only show in map mode
+    if (_mode != MapMode.map) return const SizedBox.shrink();
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.school, color: Colors.blueAccent),
+                const SizedBox(width: 8),
+                const Text(
+                  'เลือกปลายทาง (ทดลอง)',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _faculties.map((f) {
+                  final bool selected = (_selectedFaculty?.id ?? _faculties.first.id) == f.id;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ChoiceChip(
+                      label: Text(f.nameTh),
+                      selected: selected,
+                      onSelected: (_) {
+                        setState(() => _selectedFaculty = f);
+                      },
+                      selectedColor: Colors.blueAccent,
+                      labelStyle: TextStyle(color: selected ? Colors.white : Colors.black87),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _selectedFaculty?.nameEn ?? _faculties.first.nameEn ?? '',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            // Future: show distance from current location to selected faculty, markers, tap map to change.
+            // Future: convert to DraggableScrollableSheet listing all faculties with search.
+          ],
+        ),
+      ),
     );
   }
 }
