@@ -49,8 +49,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('กรุณาเข้าสู่ระบบเพื่อดูข้อมูลส่วนตัว'),
-                  const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.push(
