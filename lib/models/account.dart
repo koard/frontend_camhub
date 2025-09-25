@@ -1,4 +1,12 @@
-enum Year { year1, year2, year3, year4 }
+enum Year {
+  year1(title: "ปี 1"),
+  year2(title: "ปี 2"),
+  year3(title: "ปี 3"),
+  year4(title: "ปี 4");
+
+  const Year({required this.title});
+  final String title;
+}
 
 enum Faculty {
   computerEngineering(title: "วิศวกรรมคอมพิวเตอร์"),

@@ -12,12 +12,13 @@ class CourseService {
   Future<Map<String, dynamic>?> getCourses() async {
     final storage = FlutterSecureStorage();
     final token = await storage.read(key: 'access_token');
-    final uri = Uri.parse('$_baseUrl/api/enrollments/user');
+    final uri = Uri.parse('$_baseUrl/api/enrollments/me');
 
     final res = await http.get(
       uri,
       headers: {'accept': 'application/json', 'Authorization': 'Bearer $token'},
     );
+    log('Courses response status: ${res.statusCode}');
 
     if (res.statusCode == 200) {
       return jsonDecode(res.body);
