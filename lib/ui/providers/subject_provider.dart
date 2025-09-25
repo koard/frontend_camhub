@@ -94,7 +94,7 @@ class SubjectProvider with ChangeNotifier {
       final data = jsonDecode(token);
       final accessToken = data['access_token'];
 
-      final uri = Uri.parse('$_baseUrl/api/enrollments/user');
+      final uri = Uri.parse('$_baseUrl/api/enrollments/me');
       final res = await http.get(
         uri,
         headers: {
