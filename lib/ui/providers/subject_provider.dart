@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../models/course.dart';
+import '../../models/course_schedule.dart';
 import '../../models/enrollment.dart';
 import 'dart:developer';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -16,11 +17,18 @@ class SubjectProvider with ChangeNotifier {
   final List<Enrollment> _enrollments = [];
   final List<String> _registeredSubjectIds = [];
   final List<int> _registeredCourseIds = [];
+  final Map<int, List<CourseSchedule>> _courseSchedules = {};
+  final Set<int> _loadingScheduleCourseIds = {};
 
   List<Course> get courses => _courses;
   List<Enrollment> get enrollments => _enrollments;
   List<String> get registeredSubjectIds => _registeredSubjectIds;
   List<int> get registeredCourseIds => _registeredCourseIds;
+  List<CourseSchedule> getCourseSchedules(int courseId) =>
+      _courseSchedules[courseId] ?? [];
+  bool isScheduleLoaded(int courseId) => _courseSchedules.containsKey(courseId);
+  bool isScheduleLoading(int courseId) =>
+      _loadingScheduleCourseIds.contains(courseId);
 
   Future<bool> checkCourseRegistration(int courseId) async {
     final storage = FlutterSecureStorage();
@@ -94,7 +102,7 @@ class SubjectProvider with ChangeNotifier {
       final data = jsonDecode(token);
       final accessToken = data['access_token'];
 
-      final uri = Uri.parse('$_baseUrl/api/enrollments/user');
+      final uri = Uri.parse('$_baseUrl/api/enrollments/me');
       final res = await http.get(
         uri,
         headers: {
@@ -187,6 +195,37 @@ class SubjectProvider with ChangeNotifier {
     } catch (e) {
       log('Error registering course: $e');
       throw Exception('Error registering course: $e');
+    }
+  }
+
+  Future<void> fetchCourseSchedules(int courseId) async {
+    if (_courseSchedules.containsKey(courseId) ||
+        _loadingScheduleCourseIds.contains(courseId)) {
+      return;
+    }
+
+    _loadingScheduleCourseIds.add(courseId);
+    notifyListeners();
+
+    try {
+      final uri = Uri.parse('$_baseUrl/api/course_schedules/course/$courseId');
+      final res = await http.get(uri, headers: {'accept': 'application/json'});
+
+      if (res.statusCode == 200) {
+        final List<dynamic> courseSchedulesJson = jsonDecode(res.body);
+        _courseSchedules[courseId] =
+            courseSchedulesJson
+                .map((json) => CourseSchedule.fromJson(json))
+                .toList();
+      } else {
+        throw Exception('Failed to fetch course schedules: ${res.statusCode}');
+      }
+    } catch (e) {
+      log('Error fetching course schedules for course $courseId: $e');
+      rethrow;
+    } finally {
+      _loadingScheduleCourseIds.remove(courseId);
+      notifyListeners();
     }
   }
 

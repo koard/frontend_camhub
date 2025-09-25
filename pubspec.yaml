@@ -21,6 +21,7 @@ dependencies:
   cloud_firestore: ^5.6.12
   flutter_dotenv: ^5.2.1
   http: ^1.2.2
+  http_parser: ^4.0.2
   fluttertoast: ^8.0.9
   geolocator: ^11.0.0
   flutter_native_splash: ^2.4.6
@@ -28,6 +29,7 @@ dependencies:
   google_navigation_flutter: ^0.6.4
   permission_handler: ^11.3.1
   flip_card: ^0.7.0
+  image_picker: ^1.0.4
 
 dev_dependencies:
   flutter_test:
@@ -47,6 +49,7 @@ flutter:
     - assets/.env
     - assets/images/
     - assets/splash_icon.png
+    - assets/profile_picture.png
 
 flutter_native_splash:
   # Required: Background color

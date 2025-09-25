@@ -40,7 +40,7 @@ class UserService {
       'last_name': userModel.lastName,
       'birth_date': _formatDate(birthDate),
       'faculty_id': facultyId,
-      'year_of_study': userModel.year,
+      'year_of_study': Year.values.indexOf(userModel.year) + 1,
       'role_id': 2,
     };
 

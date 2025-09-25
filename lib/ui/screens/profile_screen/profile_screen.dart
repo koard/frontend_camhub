@@ -3,8 +3,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:campusapp/ui/screens/account_screen/login_screen.dart';
 import 'package:campusapp/core/routes.dart';
 import 'package:campusapp/ui/service/profile_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flip_card/flip_card.dart';
 import 'package:campusapp/ui/screens/main_screen/main_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http_parser/http_parser.dart';
+import 'dart:io';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,12 +20,188 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserService _userService = UserService();
   final _storage = const FlutterSecureStorage();
+  final ImagePicker _picker = ImagePicker();
   late Future<Map<String, dynamic>?> _futureProfile;
+  bool _isUploading = false;
+
+  MediaType? _mediaTypeFromMime(String? mimeType) {
+    if (mimeType == null) return null;
+    final parts = mimeType.split('/');
+    if (parts.length != 2) return null;
+    if (parts.first != 'image') return null;
+    final subtype = parts.last.toLowerCase();
+
+    switch (subtype) {
+      case 'jpeg':
+      case 'jpg':
+        return MediaType('image', 'jpeg');
+      case 'png':
+        return MediaType('image', 'png');
+      default:
+        return null;
+    }
+  }
+
+  MediaType? _mediaTypeFromPath(String path) {
+    final lowerPath = path.toLowerCase();
+    if (lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg')) {
+      return MediaType('image', 'jpeg');
+    } else if (lowerPath.endsWith('.png')) {
+      return MediaType('image', 'png');
+    }
+    return null;
+  }
 
   @override
   void initState() {
     super.initState();
     _futureProfile = _userService.getUserProfile();
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final ImageSource? source = await showDialog<ImageSource>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('เลือกรูปภาพ'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('ถ่ายรูป'),
+                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('เลือกจากคลัง'),
+                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                ),
+              ],
+            ),
+          ),
+    );
+
+    if (source == null) return;
+
+    final XFile? image = await _picker.pickImage(
+      source: source,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 85,
+    );
+
+    if (image != null) {
+      setState(() {
+        _isUploading = true;
+      });
+
+      try {
+        final mimeType = await image.mimeType;
+        MediaType? mediaType = _mediaTypeFromMime(mimeType);
+        mediaType ??= _mediaTypeFromPath(image.path);
+
+        if (mediaType == null) {
+          setState(() {
+            _isUploading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'กรุณาเลือกรูปภาพในรูปแบบ JPEG, PNG, GIF หรือ WebP เท่านั้น',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        final success = await _userService.uploadProfileImage(
+          File(image.path),
+          contentType: mediaType,
+        );
+
+        if (success) {
+          // รีเฟรชข้อมูลโปรไฟล์
+          setState(() {
+            _futureProfile = _userService.getUserProfile();
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('อัพโหลดรูปโปรไฟล์สำเร็จ'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('เกิดข้อผิดพลาดในการอัพโหลดรูป'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('เกิดข้อผิดพลาด: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildProfileImage(String? profileImageUrl) {
+    final baseUrl =
+        dotenv.env['API_BASE_URL']?.trim().replaceAll(RegExp(r"/+$"), '') ??
+        'http://localhost:8000';
+
+    ImageProvider backgroundImage;
+    if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
+      backgroundImage = NetworkImage('$baseUrl$profileImageUrl');
+    } else {
+      backgroundImage = const AssetImage('assets/profile_picture.png');
+    }
+
+    return Stack(
+      children: [
+        CircleAvatar(
+          radius: 60,
+          backgroundImage: backgroundImage,
+          child:
+              _isUploading
+                  ? const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  )
+                  : null,
+        ),
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: GestureDetector(
+            onTap: _isUploading ? null : _pickAndUploadImage,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(
+                Icons.camera_alt,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -87,15 +267,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CircleAvatar(
-                          radius: 60,
-                          backgroundImage: AssetImage(
-                            'assets/profile_picture.png',
-                          ),
-                        ),
+                        _buildProfileImage(user['profile_image_url']),
                         const SizedBox(height: 20),
                         Text(
-                          '${user['fullname']}',
+                          '${user['fullname'] ?? 'ไม่มีชื่อ'}',
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -113,7 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              user['email'],
+                              user['email'] ?? 'ไม่มีอีเมล',
                               style: const TextStyle(
                                 fontSize: 15,
                                 color: Colors.white,

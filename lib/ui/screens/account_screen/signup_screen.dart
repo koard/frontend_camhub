@@ -318,8 +318,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       const SizedBox(height: 20),
-
-                      const SizedBox(height: 20),
                       TextFormField(
                         controller: _group,
                         decoration: const InputDecoration(

@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../providers/subject_provider.dart';
 import 'take_subject_screen.dart';
 import 'edit_subject_screen.dart'; // 👈 เพิ่ม import
+import '../../../models/course_schedule.dart';
 
 class SubjectScreen extends StatefulWidget {
   const SubjectScreen({super.key});
@@ -13,6 +14,8 @@ class SubjectScreen extends StatefulWidget {
 }
 
 class _SubjectScreenState extends State<SubjectScreen> {
+  // Track expanded enrollments for showing schedules
+  final Set<int> _expandedEnrollmentIds = {};
   @override
   void initState() {
     super.initState();
@@ -25,6 +28,15 @@ class _SubjectScreenState extends State<SubjectScreen> {
       context,
       listen: false,
     ).fetchEnrollments();
+  }
+
+  String _translateEnroll(String status) {
+    switch (status) {
+      case 'enrolled':
+        return 'ลงทะเบียนแล้ว';
+      default:
+        return status; // คืนค่าเดิมถ้าไม่ตรงกับกรณีใดๆ
+    }
   }
 
   Future<void> _navigateToTakeSubject() async {
@@ -115,59 +127,121 @@ class _SubjectScreenState extends State<SubjectScreen> {
                         itemBuilder: (context, index) {
                           final enrollment = registeredEnrollments[index];
 
+                          final isExpanded = _expandedEnrollmentIds.contains(
+                            enrollment.id,
+                          );
+
                           return Card(
                             margin: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 8,
                             ),
-                            child: ListTile(
-                              title: Text(
-                                enrollment.courseName,
-                                style: TextStyle(
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Column(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'รหัสวิชา: ${enrollment.courseId}',
-                                    style: TextStyle(fontSize: 14.sp),
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 24,
+                                        backgroundColor: const Color(
+                                          0xFF113F67,
+                                        ),
+                                        child: const Icon(
+                                          Icons.book,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              enrollment.courseName,
+                                              style: TextStyle(
+                                                fontSize: 16.sp,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'รหัสวิชา: ${enrollment.courseCode ?? '-'}',
+                                              style: TextStyle(fontSize: 14.sp),
+                                            ),
+                                            Text(
+                                              'สถานะ: ${_translateEnroll(enrollment.status)}',
+                                              style: TextStyle(fontSize: 14.sp),
+                                            ),
+                                            Text(
+                                              'วันที่ลงทะเบียน: ${enrollment.formattedEnrollmentDate}',
+                                              style: TextStyle(
+                                                fontSize: 12.sp,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        enrollment.status == 'enrolled'
+                                            ? Icons.check_circle
+                                            : Icons.pending,
+                                        color:
+                                            enrollment.status == 'enrolled'
+                                                ? Colors.green
+                                                : Colors.orange,
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    'สถานะ: ${enrollment.status}',
-                                    style: TextStyle(fontSize: 14.sp),
-                                  ),
-                                  Text(
-                                    'วันที่ลงทะเบียน: ${enrollment.formattedEnrollmentDate}',
-                                    style: TextStyle(
-                                      fontSize: 12.sp,
-                                      color: Colors.grey[600],
+                                  const SizedBox(height: 8),
+                                  // Schedules dropdown toggle (visible if schedules exist)
+                                  if (enrollment.hasSchedules)
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: TextButton.icon(
+                                        onPressed: () {
+                                          setState(() {
+                                            if (isExpanded) {
+                                              _expandedEnrollmentIds.remove(
+                                                enrollment.id,
+                                              );
+                                            } else {
+                                              _expandedEnrollmentIds.add(
+                                                enrollment.id,
+                                              );
+                                            }
+                                          });
+                                        },
+                                        icon: Icon(
+                                          isExpanded
+                                              ? Icons.keyboard_arrow_up
+                                              : Icons.keyboard_arrow_down,
+                                        ),
+                                        label: Text(
+                                          isExpanded
+                                              ? 'ซ่อนตารางเวลา'
+                                              : 'ดูตารางเวลา',
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                  // Expanded schedule list
+                                  if (enrollment.hasSchedules && isExpanded)
+                                    _ScheduleList(
+                                      schedules: enrollment.schedules,
+                                    ),
                                 ],
                               ),
-                              leading: CircleAvatar(
-                                backgroundColor: const Color(0xFF113F67),
-                                child: Text(
-                                  '${enrollment.courseId}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              trailing:
-                                  enrollment.status == 'enrolled'
-                                      ? const Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green,
-                                      )
-                                      : const Icon(
-                                        Icons.pending,
-                                        color: Colors.orange,
-                                      ),
                             ),
                           );
                         },
@@ -176,6 +250,85 @@ class _SubjectScreenState extends State<SubjectScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ScheduleList extends StatelessWidget {
+  final List<CourseSchedule> schedules;
+
+  const _ScheduleList({required this.schedules});
+
+  String _thaiDay(String day) {
+    switch (day.toLowerCase()) {
+      case 'monday':
+        return 'วันจันทร์';
+      case 'tuesday':
+        return 'วันอังคาร';
+      case 'wednesday':
+        return 'วันพุธ';
+      case 'thursday':
+        return 'วันพฤหัสบดี';
+      case 'friday':
+        return 'วันศุกร์';
+      case 'saturday':
+        return 'วันเสาร์';
+      case 'sunday':
+        return 'วันอาทิตย์';
+      default:
+        return day;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (schedules.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      children:
+          schedules.map((s) {
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F9FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.schedule,
+                    size: 18,
+                    color: Color(0xFF113F67),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_thaiDay(s.dayOfWeek)} ${s.formattedTimeRange}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          s.roomName != null && s.roomName!.isNotEmpty
+                              ? 'ห้อง: ${s.roomName}'
+                              : 'ห้อง ID: ${s.roomId}',
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
     );
   }
 }

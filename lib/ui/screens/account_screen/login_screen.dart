@@ -1,11 +1,9 @@
-import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 import '../main_screen/main_screen.dart';
 import '../../widgets/auth_widgets/button.dart';
 
-import '../../providers/auth_provider.dart';
 import 'signup_screen.dart';
 import '../../service/user_service.dart';
 
@@ -17,7 +15,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
   final _email = TextEditingController();
