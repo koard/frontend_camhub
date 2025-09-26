@@ -9,6 +9,7 @@ import 'package:campusapp/ui/screens/main_screen/main_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http_parser/http_parser.dart';
 import 'dart:io';
+import 'package:campusapp/ui/service/schedule_services.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -363,6 +364,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ElevatedButton.icon(
                 onPressed: () async {
                   await _storage.delete(key: 'access_token');
+                  // ล้างไฟล์ cache ตารางเรียน (ถ้ามี)
+                  try {
+                    await ScheduleCourseService().clearScheduleFileCache();
+                  } catch (_) {}
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (context) => MainHomeScreen()),
                   );
