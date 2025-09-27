@@ -45,4 +45,14 @@ class EventService {
     });
     return events.take(limit).toList();
   }
+
+  // Fetch public event details by id for deep link navigation
+  static Future<Map<String, dynamic>?> fetchPublicById(int eventId) async {
+    final res = await http.get(_uri('/api/events/public/$eventId'));
+    if (res.statusCode != 200) return null;
+    final map = Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+    // Align field naming expected by UI (some parts read 'name')
+    map['name'] = map['title'] ?? map['name'];
+    return map;
+  }
 }

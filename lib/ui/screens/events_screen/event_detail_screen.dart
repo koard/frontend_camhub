@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../service/event_enrollment_service.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../service/event_share_service.dart';
+import '../../service/event_service.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -28,12 +31,35 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     try {
       final eventId = _asInt(widget.event['id']);
       if (eventId == null) return;
-      final enrolled = await EventEnrollmentService.isEnrolled(eventId);
-      final total = await EventEnrollmentService.getTotalEnrolled(eventId);
+
+      // 1) Always try public endpoint for enrolled_count so guests can see the number
+      int? publicCount;
+      try {
+        final public = await EventService.fetchPublicById(eventId);
+        publicCount = _asInt(public?['enrolled_count']);
+      } catch (_) {}
+
+      // 2) Auth-based checks (safe if not logged in: falls back to false/0)
+      bool enrolled = false;
+      try {
+        enrolled = await EventEnrollmentService.isEnrolled(eventId);
+      } catch (_) {}
+
+      int? total = publicCount;
+      // If public endpoint didn't provide the count, try the private count as a fallback
+      if (total == null) {
+        try {
+          total = await EventEnrollmentService.getTotalEnrolled(eventId);
+        } catch (_) {}
+      }
+
       if (!mounted) return;
       setState(() {
         _enrolled = enrolled;
-        _enrolledCount = total;
+        // Only set when we actually have a value; avoid overriding with 0 due to auth failures
+        if (total != null) {
+          _enrolledCount = total;
+        }
       });
     } catch (_) {}
   }
@@ -50,6 +76,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final enrolled = _enrolledCount ?? _asInt(widget.event['enrolled_count']);
     final capacity = _asInt(widget.event['capacity']);
     final showCapacity = enrolled != null && capacity != null && capacity > 0;
+  final isFull = showCapacity && enrolled >= capacity;
 
     return Scaffold(
       appBar: AppBar(
@@ -109,8 +136,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
             SizedBox(height: 16.h),
 
-            // ความคืบหน้าการลงทะเบียน
-            if (showCapacity)
+            // ความคืบหน้าการลงทะเบียน / จำนวนนับผู้ลงทะเบียน
+            if (enrolled != null)
               Card(
                 elevation: 3,
                 shape: RoundedRectangleBorder(
@@ -123,7 +150,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.people_alt, color: Colors.blue.shade600),
+                          Icon(Icons.people_alt, color: isFull ? Colors.red.shade600 : Colors.blue.shade600),
                           SizedBox(width: 8.w),
                           Text(
                             'การลงทะเบียน',
@@ -136,24 +163,34 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         ],
                       ),
                       SizedBox(height: 8.h),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8.r),
-                        child: LinearProgressIndicator(
-                          value: ((enrolled / capacity).clamp(0, 1)).toDouble(),
-                          minHeight: 10.h,
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            enrolled >= capacity
-                                ? Colors.red.shade400
-                                : Colors.green.shade400,
+                      if (showCapacity) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8.r),
+                          child: LinearProgressIndicator(
+                            value: ((enrolled / capacity).clamp(0, 1)).toDouble(),
+                            minHeight: 10.h,
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              isFull ? Colors.red.shade400 : Colors.green.shade400,
+                            ),
                           ),
                         ),
-                      ),
-                      SizedBox(height: 8.h),
-                      Text(
-                        'ลงทะเบียนแล้ว ${enrolled}/${capacity} คน',
-                        style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade700),
-                      ),
+                        SizedBox(height: 8.h),
+                        Text(
+                          'ลงทะเบียนแล้ว ${enrolled}/${capacity} คน',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: isFull ? Colors.red.shade700 : Colors.grey.shade700,
+                            fontWeight: isFull ? FontWeight.w700 : FontWeight.w400,
+                          ),
+                        ),
+                      ] else ...[
+                        // ไม่จำกัดจำนวน: แสดงเฉพาะจำนวนปัจจุบัน
+                        Text(
+                          'ลงทะเบียนแล้ว ${enrolled} คน',
+                          style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade700),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -171,8 +208,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
             SizedBox(height: 16.h),
 
-            // วันที่เริ่ม-สิ้นสุด (compact tiles)
-            _buildDateRow(
+            // วันเวลา: รวมวันที่เริ่มและสิ้นสุดไว้ในการ์ดเดียว
+            _buildDateCard(
               startIso: widget.event["start_date"],
               endIso: widget.event["end_date"],
             ),
@@ -218,11 +255,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 SizedBox(width: 12.w),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('แชร์กิจกรรมแล้ว!')),
-                      );
-                    },
+                    onPressed: _onPressShare,
                     icon: const Icon(Icons.share),
                     label: Text('แชร์', style: TextStyle(fontSize: 16.sp)),
                     style: ElevatedButton.styleFrom(
@@ -299,31 +332,112 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
-  Widget _buildDateRow({String? startIso, String? endIso}) {
+  Widget _buildDateCard({String? startIso, String? endIso}) {
     final start = _splitDateTime(startIso);
     final end = _splitDateTime(endIso);
-    return Row(
-      children: [
-        Expanded(
-          child: _buildDateTile(
-            title: 'วันที่เริ่ม',
-            date: start.date,
-            time: start.time,
-            color: Colors.blue,
-            icon: Icons.play_arrow,
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+      child: Padding(
+        padding: EdgeInsets.all(16.w),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // เริ่ม (ซ้าย)
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8.w),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      child: Icon(Icons.play_arrow, size: 18.sp, color: Colors.blue),
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'เริ่ม',
+                            style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600, color: Colors.grey.shade800),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 4.h),
+                          Text(
+                            start.date,
+                            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700, color: Colors.black87),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 2.h),
+                          Text(
+                            start.time,
+                            style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w500, color: Colors.grey.shade600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Divider แนวตั้ง
+              VerticalDivider(width: 24, thickness: 1, color: Colors.grey.shade200),
+              // สิ้นสุด (ขวา)
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8.w),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      child: Icon(Icons.stop, size: 18.sp, color: Colors.red),
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'สิ้นสุด',
+                            style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600, color: Colors.grey.shade800),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 4.h),
+                          Text(
+                            end.date,
+                            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700, color: Colors.black87),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 2.h),
+                          Text(
+                            end.time,
+                            style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w500, color: Colors.grey.shade600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        SizedBox(width: 12.w),
-        Expanded(
-          child: _buildDateTile(
-            title: 'วันที่สิ้นสุด',
-            date: end.date,
-            time: end.time,
-            color: Colors.red,
-            icon: Icons.stop,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -338,81 +452,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     return _DateParts(date, time);
   }
 
-  Widget _buildDateTile({
-    required String title,
-    required String date,
-    required String time,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(14.w),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: EdgeInsets.all(8.w),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10.r),
-            ),
-            child: Icon(icon, size: 18.sp, color: color),
-          ),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 6.h),
-                Text(
-                  date,
-                  style: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 2.h),
-                Text(
-                  time,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ... (ยกเลิก _buildDateTile และใช้ _buildDateCard แทน)
 
   Widget _buildEnrollButton({required bool showCapacity, int? eventCapacity, int? currentEnrolled}) {
     final isFull = showCapacity && eventCapacity != null && currentEnrolled != null && currentEnrolled >= eventCapacity;
@@ -469,6 +509,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _onPressShare() async {
+    // Build public share URL based on backend `/api/events/public/{id}`
+    final id = _asInt(widget.event['id']);
+    if (id == null) return;
+  final text = EventShareService.composeShareText(widget.event);
+    try {
+      await Share.share(text, subject: EventShareService.titleFrom(widget.event));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ไม่สามารถแชร์ได้: $e')),
+      );
     }
   }
 }
