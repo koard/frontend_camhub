@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../service/event_enrollment_service.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../service/event_share_service.dart';
 import '../../service/event_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:campusapp/core/routes.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -475,6 +478,26 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Future<void> _onPressEnroll() async {
+    // Require login before allowing enroll/cancel
+    if (!await _isLoggedIn()) {
+      if (!mounted) return;
+      final goLogin = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('ต้องเข้าสู่ระบบ'),
+          content: const Text('กรุณาเข้าสู่ระบบก่อนลงทะเบียนกิจกรรม'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('ยกเลิก')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('เข้าสู่ระบบ')),
+          ],
+        ),
+      );
+      if (goLogin == true && mounted) {
+        Navigator.of(context).pushNamed(AppRoutes.login);
+      }
+      return;
+    }
+
     final eventId = _asInt(widget.event['id']);
     if (eventId == null) return;
     final confirm = await showDialog<bool>(
@@ -509,6 +532,19 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<bool> _isLoggedIn() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final tokenJson = await storage.read(key: 'access_token');
+      if (tokenJson == null || tokenJson.isEmpty) return false;
+      final data = jsonDecode(tokenJson);
+      final token = data['access_token'];
+      return token is String && token.isNotEmpty;
+    } catch (_) {
+      return false;
     }
   }
 
