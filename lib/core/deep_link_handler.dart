@@ -49,8 +49,17 @@ class DeepLinkHandler {
     if (eventId == null) return;
     try {
       final data = await EventService.fetchPublicById(eventId);
+      if (data == null) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text('ไม่พบกิจกรรมที่ต้องการเปิด')),
+          );
+        }
+        return;
+      }
       final route = MaterialPageRoute(
-        builder: (_) => EventDetailScreen(event: data ?? {'id': eventId}),
+        builder: (_) => EventDetailScreen(event: data),
       );
       navigatorKey.currentState?.push(route);
     } catch (e) {
