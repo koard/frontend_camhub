@@ -2,7 +2,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class EventShareService {
   static String get _baseUrl =>
-      dotenv.env['API_BASE_URL']?.trim().replaceAll(RegExp(r"/+$$"), '') ??
+      dotenv.env['API_BASE_URL']?.trim().replaceAll(RegExp(r"/+$"), '') ??
       'http://127.0.0.1:8000';
 
   /// Build an 'open' page URL that attempts to open the app (backend provides /api/events/open/{id})

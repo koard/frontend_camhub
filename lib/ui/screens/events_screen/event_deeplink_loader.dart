@@ -23,7 +23,7 @@ class _EventDeepLinkLoaderState extends State<EventDeepLinkLoader> {
       if (!mounted) return;
       if (data == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ไม่พบนึกกรรมหรือปิดการเข้าถึง')),
+          const SnackBar(content: Text('ไม่พบกิจกรรมหรือปิดการเข้าถึง')),
         );
         Navigator.of(context).pop();
         return;
