@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ui/screens/main_screen/main_screen.dart';
 import 'package:campusapp/ui/screens/started_screen/on_boarding_screen.dart';
@@ -11,6 +12,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'ui/providers/subject_provider.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'core/deep_link_handler.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+late final DeepLinkHandler deepLinkHandler;
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +31,10 @@ void main() async {
   );
 
   runApp(const MyApp());
+
+  // Start deep link handler after app is ready (route deep links after normal nav)
+  deepLinkHandler = DeepLinkHandler(navigatorKey: navigatorKey);
+  unawaited(deepLinkHandler.init());
 }
 
 class MyApp extends StatelessWidget {
@@ -43,6 +52,7 @@ class MyApp extends StatelessWidget {
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'Flutter Onboarding Example',
+            navigatorKey: navigatorKey,
             onGenerateRoute: AppRoutes.onGenerateRoute,
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(
@@ -84,6 +94,7 @@ class Launcher extends StatefulWidget {
 }
 
 class _LauncherState extends State<Launcher> {
+
   Future<bool> isFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('seenOnboarding') != true;
@@ -103,16 +114,16 @@ class _LauncherState extends State<Launcher> {
     FlutterNativeSplash.remove();
 
     // Navigate based on first launch
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder:
-              (_) =>
-                  isFirst ? const OnboardingScreen() : const MainHomeScreen(),
-        ),
-      );
-    }
+    navigatorKey.currentState?.pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => isFirst ? const OnboardingScreen() : const MainHomeScreen(),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   @override

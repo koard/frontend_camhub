@@ -30,6 +30,8 @@ dependencies:
   permission_handler: ^11.3.1
   flip_card: ^0.7.0
   image_picker: ^1.0.4
+  share_plus: ^10.0.2
+  app_links: ^6.3.2
   path_provider: ^2.1.5
   path: ^1.9.0
 
