@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_navigation_flutter/google_navigation_flutter.dart' as nav;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:campusapp/models/faculty_destination.dart';
+import 'package:campusapp/models/place_destination.dart';
+import 'package:campusapp/models/location.dart' as model;
+import 'package:campusapp/ui/service/location_service.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -24,17 +26,22 @@ class _MapScreenState extends State<MapScreen> {
   nav.CameraPosition? _initialCamera;
   final List<nav.Marker> _markers = <nav.Marker>[];
   // Markers & mapping
-  //  _markerIdToFaculty: markerId (SDK) -> FacultyDestination
-  //  _facultyIdToMarker: faculty.id -> marker (for showing its info window)
-  final Map<String, FacultyDestination> _markerIdToFaculty = {};
-  final Map<String, nav.Marker> _facultyIdToMarker = {};
+  //  _markerIdToPlace: markerId (SDK) -> PlaceDestination (generic place)
+  //  _placeIdToMarker: place.id -> marker (for showing its info window)
+  final Map<String, PlaceDestination> _markerIdToPlace = {};
+  final Map<String, nav.Marker> _placeIdToMarker = {};
 
   StreamSubscription<nav.NavInfoEvent>? _navInfoSub; // for camera follow
   DateTime? _lastFollowUpdate;
 
-  final List<FacultyDestination> _faculties = facultyDestinationsSeed;
-  FacultyDestination? _selectedFaculty;
-  bool _simulateRoute = false; // simulate movement when starting navigation
+  List<PlaceDestination> _places = [];
+  List<PlaceDestination> _filteredPlaces = [];
+  PlaceDestination? _selectedPlace;
+  bool _descExpanded = false;
+  bool _loadingLocations = false;
+  String? _locationsError;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   // Chip auto-scroll
   final ScrollController _chipsScrollController = ScrollController();
   final Map<String, GlobalKey> _chipKeys = {}; // faculty.id -> key for size/position
@@ -48,7 +55,45 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _prepare() async {
     await _requestPermissions();
     await _getDeviceLocation();
+    await _loadLocations();
     await _initializeSession();
+  }
+
+  Future<void> _loadLocations() async {
+    setState(() {
+      _loadingLocations = true;
+      _locationsError = null;
+    });
+    try {
+      final items = await LocationService.fetchAll();
+      _places = items
+          .map((model.Location l) => PlaceDestination(
+                id: l.id.toString(),
+                nameTh: l.name,
+                nameEn: (l.description?.isNotEmpty == true)
+                    ? l.description
+                    : (l.code.isNotEmpty ? l.code : null),
+                code: (l.code.isNotEmpty ? l.code : null),
+                description: l.description,
+                coordinate: nav.LatLng(
+                  latitude: l.latitude ?? 0,
+                  longitude: l.longitude ?? 0,
+                ),
+              ))
+          .where((f) => !(f.coordinate.latitude == 0 && f.coordinate.longitude == 0))
+          .toList();
+      _applyFilter();
+      // Do not auto-select any place on initial load
+      // If map view is active, refresh markers to reflect new places
+      if (_mapViewController != null) {
+        await _addPlaceMarkers();
+      }
+    } catch (e) {
+      _locationsError = e.toString();
+      _places = [];
+    } finally {
+      if (mounted) setState(() => _loadingLocations = false);
+    }
   }
 
   Future<void> _requestPermissions() async {
@@ -110,11 +155,11 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   // Start navigation to destination
-  Future<void> _startNavigation({bool simulate = false}) async {
+  Future<void> _startNavigation() async {
     if (!_sessionInitialized) return;
     if (_mode == MapMode.navigating) return;
 
-  final targetFaculty = _selectedFaculty; // no default; user must choose
+  final targetFaculty = _selectedPlace; // no default; user must choose
 
     if (_currentPosition == null) {
       await _getDeviceLocation();
@@ -142,9 +187,6 @@ class _MapScreenState extends State<MapScreen> {
     if (status == nav.NavigationRouteStatus.statusOk) {
       await _setupNavListeners();
       await nav.GoogleMapsNavigator.startGuidance();
-      if (simulate) {
-        await nav.GoogleMapsNavigator.simulator.simulateLocationsAlongExistingRoute();
-      }
       await _navController?.followMyLocation(nav.CameraPerspective.tilted);
       _focusCameraOnCurrentLocation(follow: true);
       setState(() => _mode = MapMode.navigating);
@@ -197,20 +239,23 @@ class _MapScreenState extends State<MapScreen> {
     _mapViewController = controller;
     await controller.setMyLocationEnabled(true);
     // Always (re)add markers when the map view is (re)created to keep ID mappings fresh
-    await _addFacultyMarkers();
+    await _addPlaceMarkers();
     _focusCameraOnCurrentLocation();
   }
 
-  Future<void> _addFacultyMarkers() async {
+  Future<void> _addPlaceMarkers() async {
     if (_mapViewController == null) return;
     // Clear local caches before adding new markers (old controller was disposed when switching views)
     _markers.clear();
-    _markerIdToFaculty.clear();
-    _facultyIdToMarker.clear();
-    final List<nav.MarkerOptions> optionsList = _faculties.map((f) {
+    _markerIdToPlace.clear();
+    _placeIdToMarker.clear();
+    final List<nav.MarkerOptions> optionsList = _places.map((f) {
       return nav.MarkerOptions(
         position: f.coordinate,
-        infoWindow: nav.InfoWindow(title: f.nameTh, snippet: f.nameEn ?? ''),
+        infoWindow: nav.InfoWindow(
+          title: f.nameTh,
+          snippet: (f.code ?? f.nameEn ?? ''),
+        ),
         visible: true,
         draggable: false,
       );
@@ -221,8 +266,8 @@ class _MapScreenState extends State<MapScreen> {
       if (m == null) continue;
       _markers.add(m);
       final id = _extractMarkerId(m);
-      if (id != null) _markerIdToFaculty[id] = _faculties[i];
-      _facultyIdToMarker[_faculties[i].id] = m;
+      if (id != null) _markerIdToPlace[id] = _places[i];
+      _placeIdToMarker[_places[i].id] = m;
     }
     setState(() {});
   }
@@ -270,27 +315,30 @@ class _MapScreenState extends State<MapScreen> {
 
   /// Marker tapped -> select faculty & focus camera
   void _onMarkerClicked(String markerId) {
-    final faculty = _markerIdToFaculty[markerId];
+    final faculty = _markerIdToPlace[markerId];
     if (faculty == null) return; // No mapping (should not normally happen)
-    if (_selectedFaculty?.id == faculty.id) {
+    if (_selectedPlace?.id == faculty.id) {
       // Already selected; still show info window again for user feedback.
       _focusCameraOnFaculty(faculty);
       _scrollSelectedChipIntoView();
       return;
     }
-    setState(() => _selectedFaculty = faculty);
+    setState(() {
+      _selectedPlace = faculty;
+      _descExpanded = false; // reset expand state on new selection
+    });
     _focusCameraOnFaculty(faculty);
     _scrollSelectedChipIntoView();
   }
 
-  Future<void> _focusCameraOnFaculty(FacultyDestination f) async {
+  Future<void> _focusCameraOnFaculty(PlaceDestination f) async {
     if (_mapViewController == null) return;
     final update = nav.CameraUpdate.newCameraPosition(
       nav.CameraPosition(target: f.coordinate, zoom: 17),
     );
     try {
       await _mapViewController!.animateCamera(update);
-      final marker = _facultyIdToMarker[f.id];
+      final marker = _placeIdToMarker[f.id];
       if (marker != null) {
         try {
           final dyn = marker as dynamic;
@@ -307,6 +355,7 @@ class _MapScreenState extends State<MapScreen> {
       nav.GoogleMapsNavigator.cleanup();
     }
     _chipsScrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -347,12 +396,43 @@ class _MapScreenState extends State<MapScreen> {
                           onMarkerClicked: _onMarkerClicked,
                           initialCameraPosition: _initialCamera!,
                         ),
+                        // Top overlay: search bar + results list (iOS style)
                         Positioned(
                           left: 0,
                           right: 0,
-                          bottom: 0,
-                          child: _buildDestinationSelectorBar(),
+                          top: 0,
+                          child: SafeArea(
+                            bottom: false,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildCupertinoSearchBar(),
+                                  if (_locationsError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: _buildErrorBanner(),
+                                    ),
+                                  if (_searchQuery.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: _buildSearchResultsCard(),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
+                        // Bottom overlay: selected place detail card
+                        if (_mode == MapMode.map && _selectedPlace != null && _searchQuery.isEmpty)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: _buildSelectedPlaceCard(),
+                          ),
                       ],
                     ),
                   ),
@@ -417,24 +497,166 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  /// Bottom selector bar shown only in map mode for choosing a faculty.
-  /// Currently we only have one seed faculty but UI is built to scale.
-  Widget _buildDestinationSelectorBar() {
-    // Only show in map mode
-    if (_mode != MapMode.map) return const SizedBox.shrink();
+  /// Top iOS-style search bar
+  Widget _buildCupertinoSearchBar() {
+    final bool loading = _loadingLocations;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.search, color: Colors.grey),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                hintText: 'ค้นหาสถานที่',
+              ),
+              textInputAction: TextInputAction.search,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.trim();
+                  _applyFilter();
+                });
+              },
+              onSubmitted: (_) {
+                // keep results open; user can tap an item
+              },
+            ),
+          ),
+          if (loading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else if (_searchQuery.isNotEmpty)
+            IconButton(
+              tooltip: 'ล้าง',
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () {
+                setState(() {
+                  _searchQuery = '';
+                  _searchController.clear();
+                  _applyFilter();
+                  FocusScope.of(context).unfocus();
+                });
+              },
+            )
+          else
+            IconButton(
+              tooltip: 'โหลดใหม่',
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadLocations,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Colors.orange, size: 16),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'โหลดตำแหน่งจากเซิร์ฟเวอร์ไม่สำเร็จ: $_locationsError',
+              style: const TextStyle(color: Colors.orange, fontSize: 12),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          TextButton(
+            onPressed: _loadLocations,
+            child: const Text('ลองใหม่', style: TextStyle(color: Colors.orange)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchResultsCard() {
+    final results = _filteredPlaces;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      constraints: const BoxConstraints(maxHeight: 260),
+      child: results.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(12.0),
+              child: Text('ไม่พบผลการค้นหา', style: TextStyle(color: Colors.grey)),
+            )
+          : ListView.separated(
+              shrinkWrap: true,
+              itemCount: results.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final p = results[index];
+                return ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.place_outlined),
+                  title: Text(p.nameTh, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(p.code ?? p.nameEn ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                  onTap: () {
+                    setState(() {
+                      _selectedPlace = p;
+                      _searchQuery = '';
+                      _searchController.clear();
+                    });
+                    _focusCameraOnFaculty(p);
+                    _scrollSelectedChipIntoView();
+                    FocusScope.of(context).unfocus();
+                  },
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _buildSelectedPlaceCard() {
+    final p = _selectedPlace!;
+    final distanceText = _formatDistanceTo(p);
     return SafeArea(
       top: false,
       child: Container(
         margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.15),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -443,57 +665,89 @@ class _MapScreenState extends State<MapScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.school, color: Colors.blueAccent),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'เลือกปลายทาง',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                const Icon(Icons.place, color: Colors.redAccent),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        p.nameTh,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        p.code ?? p.nameEn ?? '-',
+                        style: const TextStyle(color: Colors.black54),
+                      ),
+                      if (distanceText != null) ...[
+                        const SizedBox(height: 2),
+                        Text(distanceText, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                      ],
+                      if ((p.description ?? '').isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () => setState(() => _descExpanded = !_descExpanded),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('รายละเอียด', style: TextStyle(fontWeight: FontWeight.w600)),
+                              Icon(_descExpanded ? Icons.expand_less : Icons.expand_more),
+                            ],
+                          ),
+                        ),
+                        AnimatedCrossFade(
+                          crossFadeState: _descExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                          duration: const Duration(milliseconds: 200),
+                          firstChild: Padding(
+                            padding: const EdgeInsets.only(top: 6.0),
+                            child: Text(
+                              p.description!,
+                              style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.25),
+                            ),
+                          ),
+                          secondChild: Padding(
+                            padding: const EdgeInsets.only(top: 6.0),
+                            child: Text(
+                              p.description!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.25),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                _buildSimToggle(),
-                ElevatedButton.icon(
-                  onPressed: _sessionInitialized && _selectedFaculty != null
-                      ? () => _startNavigation(simulate: _simulateRoute)
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  icon: const Icon(Icons.navigation, size: 18),
-                  label: const Text('เริ่มนำทาง'),
+                IconButton(
+                  tooltip: 'ปิด',
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() => _selectedPlace = null),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            SingleChildScrollView(
-              controller: _chipsScrollController,
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _faculties.asMap().entries.map((entry) {
-                  final f = entry.value;
-                  final bool selected = _selectedFaculty?.id == f.id;
-                  final key = _chipKeys.putIfAbsent(f.id, () => GlobalKey());
-                  return Padding(
-                    key: key,
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: ChoiceChip(
-                      label: Text(f.nameTh),
-                      selected: selected,
-                      onSelected: (_) {
-                        setState(() => _selectedFaculty = f);
-                        _focusCameraOnFaculty(f);
-                        _scrollSelectedChipIntoView();
-                      },
-                      selectedColor: Colors.blueAccent,
-                      labelStyle: TextStyle(color: selected ? Colors.white : Colors.black87),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _sessionInitialized ? _startNavigation : null,
+                    icon: const Icon(Icons.navigation),
+                    label: const Text('เริ่มนำทาง'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                  );
-                }).toList(),
-              ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // sim toggle removed
+              ],
             ),
           ],
         ),
@@ -501,10 +755,45 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  String? _formatDistanceTo(PlaceDestination p) {
+    if (_currentPosition == null) return null;
+    try {
+      final d = Geolocator.distanceBetween(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        p.coordinate.latitude,
+        p.coordinate.longitude,
+      );
+      if (d.isNaN) return null;
+      if (d < 1000) {
+        return '${d.toStringAsFixed(0)} m';
+      } else {
+        return '${(d / 1000).toStringAsFixed(1)} km';
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _applyFilter() {
+    if (_searchQuery.isEmpty) {
+      _filteredPlaces = _places;
+      return;
+    }
+    final q = _searchQuery.toLowerCase();
+    _filteredPlaces = _places.where((p) {
+      final nameTh = p.nameTh.toLowerCase();
+      final nameEn = (p.nameEn ?? '').toLowerCase();
+      final code = (p.code ?? '').toLowerCase();
+      final desc = (p.description ?? '').toLowerCase();
+      return nameTh.contains(q) || nameEn.contains(q) || code.contains(q) || desc.contains(q);
+    }).toList();
+  }
+
   /// Ensure currently selected chip is visible (tries to center it if possible)
   void _scrollSelectedChipIntoView() {
     if (!_chipsScrollController.hasClients) return;
-    final selected = _selectedFaculty;
+    final selected = _selectedPlace;
     if (selected == null) return;
     final key = _chipKeys[selected.id];
     if (key == null) return;
@@ -543,76 +832,5 @@ class _MapScreenState extends State<MapScreen> {
         curve: Curves.easeOutCubic,
       );
     });
-  }
-
-  Widget _buildSimToggle() {
-    return GestureDetector(
-      onTap: () => setState(() => _simulateRoute = !_simulateRoute),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        margin: const EdgeInsets.only(right: 8),
-        decoration: BoxDecoration(
-          color: _simulateRoute ? Colors.orange.shade600 : Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: _simulateRoute
-              ? [
-                  BoxShadow(
-                    color: Colors.orange.withOpacity(0.4),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  )
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _simulateRoute ? Icons.play_circle_fill : Icons.play_circle_outline,
-              size: 18,
-              color: _simulateRoute ? Colors.white : Colors.black87,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              'Sim',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: _simulateRoute ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(width: 4),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 26,
-              height: 14,
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: _simulateRoute ? Colors.white.withOpacity(0.9) : Colors.black.withOpacity(0.25),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              alignment: _simulateRoute ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: _simulateRoute ? Colors.orange.shade700 : Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 3,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
