@@ -15,8 +15,6 @@ class EventsScreen extends StatefulWidget {
 class _EventsScreenState extends State<EventsScreen> {
   final EventsProvider _eventsProvider = EventsProvider();
   late Future<List<Map<String, dynamic>>> futureEvents;
-  int currentPage = 0;
-  final int itemsPerPage = 6;
   DateTimeRange? selectedDateRange;
 
   @override
@@ -42,7 +40,6 @@ class _EventsScreenState extends State<EventsScreen> {
     if (picked != null) {
       setState(() {
         selectedDateRange = picked;
-        currentPage = 0;
       });
     }
   }
@@ -90,11 +87,6 @@ class _EventsScreenState extends State<EventsScreen> {
               }).toList();
         }
 
-        final totalPages = (events.length / itemsPerPage).ceil();
-        final startIndex = currentPage * itemsPerPage;
-        final endIndex = (startIndex + itemsPerPage).clamp(0, events.length);
-        final pageEvents = events.sublist(startIndex, endIndex);
-
         return Scaffold(
           appBar: AppBar(
             title: const Text('กิจกรรม'),
@@ -113,7 +105,6 @@ class _EventsScreenState extends State<EventsScreen> {
                 onClearDateRange: () {
                   setState(() {
                     selectedDateRange = null;
-                    currentPage = 0;
                   });
                 },
               ),
@@ -122,50 +113,19 @@ class _EventsScreenState extends State<EventsScreen> {
                 child: Padding(
                   padding: EdgeInsets.all(8.w),
                   child: GridView.builder(
-                    itemCount: pageEvents.length,
+                    itemCount: events.length,
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       mainAxisSpacing: 8.h,
                       crossAxisSpacing: 8.w,
-                      childAspectRatio: 3 / 4.5,
+                      // Increase height for cards to prevent overflow
+                      childAspectRatio: 3 / 5.3,
                     ),
                     itemBuilder: (context, index) {
-                      final event = pageEvents[index];
+                      final event = events[index];
                       return EventCard(event: event);
                     },
                   ),
-                ),
-              ),
-              // Pagination
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.h),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton(
-                      onPressed:
-                          currentPage > 0
-                              ? () => setState(() => currentPage--)
-                              : null,
-                      child: Text(
-                        "< ก่อนหน้า",
-                        style: TextStyle(fontSize: 14.sp),
-                      ),
-                    ),
-                    SizedBox(width: 16.w),
-                    Text(
-                      "หน้า ${currentPage + 1} / $totalPages",
-                      style: TextStyle(fontSize: 14.sp),
-                    ),
-                    SizedBox(width: 16.w),
-                    ElevatedButton(
-                      onPressed:
-                          currentPage < totalPages - 1
-                              ? () => setState(() => currentPage++)
-                              : null,
-                      child: Text("ถัดไป >", style: TextStyle(fontSize: 14.sp)),
-                    ),
-                  ],
                 ),
               ),
             ],

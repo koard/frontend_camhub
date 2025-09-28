@@ -53,7 +53,8 @@ class AppRoutes {
       case onboarding:
         return _buildSlideRoute(const OnboardingScreen(), settings);
       default:
-        return _buildSlideRoute(const MapScreen(), settings);
+        // Default to home to avoid accidentally landing on Map and triggering location permissions
+        return _buildSlideRoute(const MainHomeScreen(), settings);
     }
   }
 

@@ -7,10 +7,18 @@ class EventCard extends StatelessWidget {
 
   const EventCard({super.key, required this.event});
 
+  String _formatDateTimeString(String? iso) {
+    if (iso == null || iso.isEmpty) return '-';
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return '-';
+    final two = (int n) => n.toString().padLeft(2, '0');
+    return '${two(dt.day)}/${two(dt.month)}/${dt.year} ${two(dt.hour)}:${two(dt.minute)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 6,
+      elevation: 5,
       shadowColor: Colors.grey.withOpacity(0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
       child: Container(
@@ -23,16 +31,16 @@ class EventCard extends StatelessWidget {
           ),
         ),
         child: Padding(
-          padding: EdgeInsets.all(12.w),
+          padding: EdgeInsets.all(10.w),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(),
-              SizedBox(height: 12.h),
+              SizedBox(height: 8.h),
               _buildTitle(),
-              SizedBox(height: 8.h),
+              SizedBox(height: 6.h),
               _buildDescription(),
-              SizedBox(height: 8.h),
+              SizedBox(height: 6.h),
               _buildDateInfo(),
               SizedBox(height: 8.h),
               _buildDetailButton(context),
@@ -55,22 +63,46 @@ class EventCard extends StatelessWidget {
           child: Icon(Icons.event, size: 24.sp, color: Colors.blue.shade700),
         ),
         const Spacer(),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-          decoration: BoxDecoration(
-            color: Colors.green.shade100,
-            borderRadius: BorderRadius.circular(8.r),
-          ),
-          child: Text(
-            "กิจกรรม",
+        _buildCapacityChip(),
+      ],
+    );
+  }
+
+  int? _asInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    return int.tryParse(v.toString());
+  }
+
+  Widget _buildCapacityChip() {
+    final enrolled = _asInt(event['enrolled_count']) ?? 0;
+    final capacity = _asInt(event['capacity']);
+    final text = capacity != null && capacity > 0 ? '$enrolled/$capacity' : '$enrolled';
+    final isFull = capacity != null && capacity > 0 && enrolled >= capacity;
+    final bg = isFull ? Colors.red.shade100 : Colors.green.shade100;
+    final fg = isFull ? Colors.red.shade700 : Colors.green.shade700;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.people, size: 12.sp, color: fg),
+          SizedBox(width: 4.w),
+          Text(
+            text,
             style: TextStyle(
               fontSize: 10.sp,
-              color: Colors.green.shade700,
-              fontWeight: FontWeight.w600,
+              color: fg,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -79,7 +111,7 @@ class EventCard extends StatelessWidget {
       event["name"] ?? "ไม่มีชื่อกิจกรรม",
       style: TextStyle(
         fontWeight: FontWeight.bold,
-        fontSize: 16.sp,
+        fontSize: 15.sp,
         color: Colors.grey.shade800,
       ),
       maxLines: 2,
@@ -92,11 +124,11 @@ class EventCard extends StatelessWidget {
       child: Text(
         event["description"] ?? "ไม่มีรายละเอียด",
         style: TextStyle(
-          fontSize: 12.sp,
+          fontSize: 11.sp,
           color: Colors.grey.shade600,
           height: 1.3,
         ),
-        maxLines: 2,
+        maxLines: 3,
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -118,12 +150,14 @@ class EventCard extends StatelessWidget {
               SizedBox(width: 4.w),
               Expanded(
                 child: Text(
-                  event["start_date"] ?? "-",
+                  _formatDateTimeString(event["start_date"]),
                   style: TextStyle(
                     fontSize: 11.sp,
                     color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -135,12 +169,14 @@ class EventCard extends StatelessWidget {
               SizedBox(width: 4.w),
               Expanded(
                 child: Text(
-                  event["end_date"] ?? "-",
+                  _formatDateTimeString(event["end_date"]),
                   style: TextStyle(
                     fontSize: 11.sp,
                     color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
