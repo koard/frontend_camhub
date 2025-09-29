@@ -1,6 +1,7 @@
 class Announcement {
   final int id;
   final String title;
+  final String category;
   final String description;
   final String? imageUrl;
   final DateTime? startDate;
@@ -13,6 +14,7 @@ class Announcement {
     required this.id,
     required this.title,
     required this.description,
+    required this.category,
     this.imageUrl,
     this.startDate,
     this.endDate,
@@ -27,6 +29,7 @@ class Announcement {
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       imageUrl: json['image_url'],
+      category: json['category'] ?? 'ทั่วไป',
       startDate:
           json['start_date'] != null
               ? DateTime.tryParse(json['start_date'].toString())
@@ -52,6 +55,7 @@ class Announcement {
       'id': id,
       'title': title,
       'description': description,
+      'category': category,
       'image_url': imageUrl,
       'start_date': startDate?.toIso8601String(),
       'end_date': endDate?.toIso8601String(),

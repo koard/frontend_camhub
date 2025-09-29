@@ -47,6 +47,9 @@ flutter:
     - assets/onboarding1.png
     - assets/onboarding2.png
     - assets/onboarding3.png
+    - assets/camphub.png
+    - assets/camphub1.png
+    - assets/camphub2.png
     - assets/mock_events/mock_events.json
     - assets/mock_schedule/schedule.json
     - assets/mock_subjects/mock_subjects.json

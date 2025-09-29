@@ -62,7 +62,7 @@ class _ExampleInfoScreenState extends State<ExampleInfoScreen> {
     } catch (e) {
       // ถ้าโหลดล้มเหลว แสดง error
       setState(() {
-        _errorMessage = 'โหลดรายวิชาไม่สำเร็จ: $e';
+        _errorMessage = 'โหลดรายวิชาไม่สำเร็จ';
       });
     } finally {
       // เมื่อโหลดเสร็จ ปิด loading
@@ -148,7 +148,7 @@ class _ExampleInfoScreenState extends State<ExampleInfoScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Text(
               _errorMessage!,
-              style: const TextStyle(color: Colors.red),
+              style: const TextStyle(color: Colors.black),
               textAlign: TextAlign.center,
             ),
           ),
