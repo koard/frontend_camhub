@@ -17,11 +17,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   Timer? _timer;
-  // Banner images (network)
+  // Banner images (assets)
   final List<String> _bannerImages = [
-    'https://www.runlah.com/images/event/YYS2wHAG/bn_ir-th.webp',
-    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYcyVIf5s3mzwc5FTldiF4a8bRi0aWCxu5kQ&s',
-    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRb43FQ6Cy2KUjD1PuJRjhS7j4u20sOAAK3ww&s',
+    'assets/camphub.png',
+    'assets/camphub1.png',
+    'assets/camphub2.png',
   ];
 
   int get bannerCount => _bannerImages.length;
@@ -102,24 +102,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(16.r),
                         color: Colors.blue[200],
                       ),
-                      child: Image.network(
+                      child: Image.asset(
                         imgUrl,
                         fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) {
-                          if (progress == null) return child;
-                          final value =
-                              progress.expectedTotalBytes != null
-                                  ? progress.cumulativeBytesLoaded /
-                                      progress.expectedTotalBytes!
-                                  : null;
-                          return Center(
-                            child: SizedBox(
-                              width: 32.w,
-                              height: 32.w,
-                              child: CircularProgressIndicator(value: value),
-                            ),
-                          );
-                        },
                         errorBuilder:
                             (context, error, stack) => Center(
                               child: Icon(
@@ -168,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Tools',
+                    'เมนูเพิ่มเติม',
                     style: TextStyle(
                       fontSize: 18.sp,
                       fontWeight: FontWeight.bold,
@@ -196,12 +181,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _buildToolButton(
                     Icons.group,
-                    'Group',
+                    'กลุ่ม',
                     onTap: () => Navigator.pushNamed(context, '/group'),
                   ),
                   _buildToolButton(
                     Icons.map,
-                    'Map',
+                    'แผนที่',
                     onTap: () => Navigator.pushNamed(context, '/map'),
                   ),
                 ],
