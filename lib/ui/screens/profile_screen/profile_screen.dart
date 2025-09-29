@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http_parser/http_parser.dart';
 import 'dart:io';
 import 'package:campusapp/ui/service/schedule_services.dart';
+import 'package:campusapp/ui/service/announcement_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -364,9 +365,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ElevatedButton.icon(
                 onPressed: () async {
                   await _storage.delete(key: 'access_token');
-                  // ล้างไฟล์ cache ตารางเรียน (ถ้ามี)
+                  // ล้างไฟล์ cache ตารางเรียน และประกาศ (รวมถึง bookmark)
                   try {
                     await ScheduleCourseService().clearScheduleFileCache();
+                    await AnnouncementService()
+                        .clearAllCaches(); // ล้าง cache ทั้งหมด รวม bookmark
                   } catch (_) {}
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (context) => MainHomeScreen()),
