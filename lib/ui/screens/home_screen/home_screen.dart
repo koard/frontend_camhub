@@ -180,9 +180,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () => Navigator.pushNamed(context, '/subject'),
                   ),
                   _buildToolButton(
-                    Icons.group,
-                    'กลุ่ม',
-                    onTap: () => Navigator.pushNamed(context, '/group'),
+                    Icons.bookmarks,
+                    'บุ๊กมาร์ก',
+                    onTap:
+                        () => Navigator.pushNamed(
+                          context,
+                          '/bookmarkedAnnouncements',
+                        ),
                   ),
                   _buildToolButton(
                     Icons.map,
