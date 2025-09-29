@@ -220,7 +220,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child:
                   _currentPage == pages.length - 1
                       ? const SizedBox.shrink()
-                      : IconButton(
+                      : TextButton(
                         onPressed: _nextPage,
                         style: ButtonStyle(
                           splashFactory: NoSplash.splashFactory,
@@ -228,9 +228,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             Colors.transparent,
                           ),
                         ),
-                        icon: const Icon(Icons.arrow_forward, color: Colors.white),
-                        iconSize: 18.sp,
-                        tooltip: 'Next',
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              'ถัดไป',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.sp,
+                              ),
+                            ),
+                            SizedBox(width: 4.w),
+                            const Icon(Icons.arrow_forward, color: Colors.white, size: 16),
+                          ],
+                        ),
                       ),
             ),
           ],
