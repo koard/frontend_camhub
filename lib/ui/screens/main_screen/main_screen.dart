@@ -48,7 +48,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
             label: "ตารางเรียน",
           ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'โปรไฟล์'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'ตั้งค่า'),
         ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,

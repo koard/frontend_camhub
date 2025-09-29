@@ -23,8 +23,10 @@ class _EditRegisteredSubjectState extends State<EditRegisteredSubjectScreen> {
 
   Future<void> _loadData() async {
     final provider = Provider.of<SubjectProvider>(context, listen: false);
-    await provider.fetchEnrollments();
+
+    // Always fetch fresh data - no cache
     await provider.fetchCoursesFromApi();
+    await provider.fetchEnrollments();
   }
 
   Future<void> _unregisterCourse(int courseId, String courseName) async {
