@@ -208,12 +208,12 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               Text(
-                "อะไรใหม่",
+                title,
                 style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
               ),
               SizedBox(width: 8.w),
               Text(
-                title,
+                'ใหม่',
                 style: TextStyle(
                   color: Colors.red,
                   fontSize: 12.sp,

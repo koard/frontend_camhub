@@ -7,9 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'ui/providers/subject_provider.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'core/deep_link_handler.dart';
@@ -25,10 +23,6 @@ void main() async {
 
   // Your initialization code
   await dotenv.load(fileName: 'assets/.env');
-  await Firebase.initializeApp();
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-  );
 
   runApp(const MyApp());
 
