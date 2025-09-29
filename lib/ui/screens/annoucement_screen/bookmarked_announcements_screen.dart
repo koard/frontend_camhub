@@ -3,178 +3,97 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:campusapp/models/announcement.dart';
 import 'package:campusapp/ui/service/announcement_service.dart';
 import 'package:campusapp/ui/screens/annoucement_screen/announcement_detail_screen.dart';
-import 'package:campusapp/ui/screens/annoucement_screen/bookmarked_announcements_screen.dart';
-import 'dart:developer';
 
-class AnnouncementScreen extends StatefulWidget {
-  const AnnouncementScreen({super.key});
+class BookmarkedAnnouncementsScreen extends StatefulWidget {
+  const BookmarkedAnnouncementsScreen({super.key});
 
   @override
-  State<AnnouncementScreen> createState() => _AnnouncementScreenState();
+  State<BookmarkedAnnouncementsScreen> createState() =>
+      _BookmarkedAnnouncementsScreenState();
 }
 
-class _AnnouncementScreenState extends State<AnnouncementScreen>
-    with WidgetsBindingObserver {
-  Future<List<Announcement>>? futureAnnouncements;
-  final Set<int> bookmarkedIds = <int>{};
+class _BookmarkedAnnouncementsScreenState
+    extends State<BookmarkedAnnouncementsScreen> {
+  late Future<List<Announcement>> futureBookmarks;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    futureAnnouncements = _fetchAnnouncements();
-    _loadBookmarkedIds();
+    futureBookmarks = _fetchBookmarks();
   }
 
-  Future<void> _loadBookmarkedIds() async {
-    try {
-      final service = AnnouncementService();
-      final bookmarkIds = await service.getBookmarkedAnnouncementIds();
-      if (mounted) {
-        setState(() {
-          bookmarkedIds.clear();
-          bookmarkedIds.addAll(bookmarkIds);
-        });
-        log('[AnnouncementsScreen] Loaded ${bookmarkIds.length} bookmark IDs');
-      }
-    } catch (e) {
-      log('[AnnouncementsScreen] Error loading bookmark IDs: $e');
-    }
-  }
-
-  Future<void> _toggleBookmark(Announcement announcement) async {
+  Future<List<Announcement>> _fetchBookmarks() async {
     final service = AnnouncementService();
-    final isBookmarked = bookmarkedIds.contains(announcement.id);
-
-    bool success;
-    if (isBookmarked) {
-      success = await service.deleteBookmark(announcement.id);
-    } else {
-      success = await service.createBookmark(announcement.id);
-    }
-
-    if (success) {
-      setState(() {
-        if (isBookmarked) {
-          bookmarkedIds.remove(announcement.id);
-        } else {
-          bookmarkedIds.add(announcement.id);
-        }
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isBookmarked ? 'ลบบุ๊กมาร์กแล้ว' : 'บุ๊กมาร์กแล้ว'),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('เกิดข้อผิดพลาด')));
-    }
+    return await service.getBookmarkedAnnouncements();
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  Future<List<Announcement>> _fetchAnnouncements() async {
-    final service = AnnouncementService();
-    return await service.getAnnouncements();
-  }
-
-  // Persist latest resolved announcements when app goes background
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.detached) {
-      _persistCurrentAnnouncementSnapshot();
-    }
-  }
-
-  Future<void> _persistCurrentAnnouncementSnapshot() async {
-    try {
-      if (!mounted || futureAnnouncements == null) return;
-      // Best effort: await with timeout small to avoid blocking.
-      final data = await futureAnnouncements!.timeout(
-        const Duration(milliseconds: 500),
-        onTimeout: () => <Announcement>[],
-      );
-      if (data.isNotEmpty) {
-        await AnnouncementService().persistAnnouncementToFile(data);
-      }
-    } catch (_) {
-      // ignore best-effort errors
-    }
-  }
-
-  String _truncateText(String text, {int maxLength = 50}) {
+  String _truncateText(String text, {int maxLength = 80}) {
     if (text.length <= maxLength) return text;
     return '${text.substring(0, maxLength)}...';
+  }
+
+  Future<void> _removeBookmark(Announcement announcement) async {
+    final service = AnnouncementService();
+    final success = await service.deleteBookmark(announcement.id);
+
+    if (success) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ลบบุ๊กมาร์กเรียบร้อยแล้ว')));
+      setState(() {
+        futureBookmarks = _fetchBookmarks(); // Refresh list
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('เกิดข้อผิดพลาดในการลบบุ๊กมาร์ก')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('ประกาศ', style: TextStyle(fontSize: 20.sp)),
+        title: Text('ประกาศที่บุ๊กมาร์ก', style: TextStyle(fontSize: 20.sp)),
         backgroundColor: const Color(0xFF113F67),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bookmarks),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BookmarkedAnnouncementsScreen(),
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
           setState(() {
-            futureAnnouncements = _fetchAnnouncements();
+            futureBookmarks = _fetchBookmarks();
           });
-          await futureAnnouncements;
+          await futureBookmarks;
         },
         child: FutureBuilder<List<Announcement>>(
-          future: futureAnnouncements,
+          future: futureBookmarks,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
             if (snapshot.hasError) {
-              return const Center(child: Text('เกิดข้อผิดพลาดในการโหลดประกาศ'));
-            }
-
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Center(
-                child: Text(
-                  'ไม่มีประกาศในขณะนี้\n(เมื่อออฟไลน์จะแสดงเฉพาะประกาศที่บุ๊กมาร์กไว้)',
-                  textAlign: TextAlign.center,
-                ),
+                child: Text('เกิดข้อผิดพลาดในการโหลดบุ๊กมาร์ก'),
               );
             }
 
-            final announcements = snapshot.data!;
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('ไม่มีประกาศที่บุ๊กมาร์กไว้'));
+            }
+
+            final bookmarks = snapshot.data!;
 
             return Padding(
               padding: EdgeInsets.all(8.w),
               child: ListView.builder(
-                itemCount: announcements.length,
+                itemCount: bookmarks.length,
                 itemBuilder: (context, index) {
-                  final item = announcements[index];
+                  final item = bookmarks[index];
                   return Card(
                     elevation: 3,
                     shape: RoundedRectangleBorder(
@@ -262,17 +181,11 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-
                                     IconButton(
-                                      onPressed: () => _toggleBookmark(item),
+                                      onPressed: () => _removeBookmark(item),
                                       icon: Icon(
-                                        bookmarkedIds.contains(item.id)
-                                            ? Icons.bookmark
-                                            : Icons.bookmark_border,
-                                        color:
-                                            bookmarkedIds.contains(item.id)
-                                                ? Colors.orange[600]
-                                                : Colors.grey[600],
+                                        Icons.bookmark_remove,
+                                        color: Colors.red[600],
                                         size: 24.sp,
                                       ),
                                       padding: EdgeInsets.zero,
@@ -282,18 +195,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
                                 ),
                                 SizedBox(height: 8.h),
                                 Text(
-                                  'หมวดหมู่: ${item.category}',
-                                  style: TextStyle(
-                                    fontSize: 12.sp,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  _truncateText(
-                                    item.description,
-                                    maxLength: 80,
-                                  ),
+                                  _truncateText(item.description),
                                   style: TextStyle(
                                     fontSize: 13.sp,
                                     color: Colors.grey[600],
@@ -305,8 +207,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      await Navigator.push(
+                                    onPressed: () {
+                                      Navigator.push(
                                         context,
                                         MaterialPageRoute(
                                           builder:
@@ -316,8 +218,6 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
                                                   ),
                                         ),
                                       );
-                                      // Refresh bookmark status after returning
-                                      _loadBookmarkedIds();
                                     },
                                     icon: Icon(Icons.visibility, size: 16.sp),
                                     label: Text(
