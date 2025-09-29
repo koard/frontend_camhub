@@ -114,7 +114,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     Container(
                       padding: EdgeInsets.all(12.w),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(15.r),
                       ),
                       child: Icon(Icons.event, size: 32.sp, color: Colors.white),
@@ -180,7 +180,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         ),
                         SizedBox(height: 8.h),
                         Text(
-                          'ลงทะเบียนแล้ว ${enrolled}/${capacity} คน',
+                                  'ลงทะเบียนแล้ว $enrolled/$capacity คน',
                           style: TextStyle(
                             fontSize: 12.sp,
                             color: isFull ? Colors.red.shade700 : Colors.grey.shade700,
@@ -190,7 +190,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       ] else ...[
                         // ไม่จำกัดจำนวน: แสดงเฉพาะจำนวนปัจจุบัน
                         Text(
-                          'ลงทะเบียนแล้ว ${enrolled} คน',
+                                  'ลงทะเบียนแล้ว $enrolled คน',
                           style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade700),
                         ),
                       ],
@@ -298,7 +298,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 Container(
                   padding: EdgeInsets.all(8.w),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10.r),
                   ),
                   child: Icon(icon, size: 20.sp, color: color),
@@ -355,7 +355,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     Container(
                       padding: EdgeInsets.all(8.w),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.08),
+                        color: Colors.blue.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(10.r),
                       ),
                       child: Icon(Icons.play_arrow, size: 18.sp, color: Colors.blue),
@@ -401,7 +401,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     Container(
                       padding: EdgeInsets.all(8.w),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.08),
+                        color: Colors.red.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(10.r),
                       ),
                       child: Icon(Icons.stop, size: 18.sp, color: Colors.red),

@@ -129,10 +129,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Container(
           padding: EdgeInsets.all(8.w),
           decoration: BoxDecoration(
-            color:
-                value
-                    ? const Color(0xFF113F67).withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.1),
+      color:
+        value
+          ? const Color(0xFF113F67).withValues(alpha: 0.1)
+          : Colors.grey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8.r),
           ),
           child: Icon(
@@ -166,7 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           value: value,
           onChanged: onChanged,
           activeColor: const Color(0xFF113F67),
-          activeTrackColor: const Color(0xFF113F67).withOpacity(0.3),
+          activeTrackColor: const Color(0xFF113F67).withValues(alpha: 0.3),
           inactiveThumbColor: Colors.grey[400],
           inactiveTrackColor: Colors.grey[300],
         ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:campusapp/ui/screens/account_screen/login_screen.dart';
 import '../main_screen/main_screen.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -119,7 +118,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   page['subtitle']!,
                   style: TextStyle(
                     fontSize: 13.sp,
-                    color: Colors.white.withOpacity(0.70),
+                    color: Colors.white.withValues(alpha: 0.70),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -205,10 +204,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       width: _currentPage == indexDot ? 14.w : 6.w,
                       height: 8.h,
                       decoration: BoxDecoration(
-                        color:
-                            _currentPage == indexDot
-                                ? Colors.white
-                                : Colors.white.withOpacity(0.5),
+            color:
+              _currentPage == indexDot
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(4.r),
                       ),
                     ),

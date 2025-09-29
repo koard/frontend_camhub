@@ -99,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       try {
-        final mimeType = await image.mimeType;
+  final mimeType = image.mimeType;
         MediaType? mediaType = _mediaTypeFromMime(mimeType);
         mediaType ??= _mediaTypeFromPath(image.path);
 
