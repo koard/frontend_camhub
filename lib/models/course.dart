@@ -48,7 +48,7 @@ class Course {
   // Helper getter for display purposes
   String get availabilityText {
     final remaining = availableSeats - enrolledCount;
-    return 'ที่นั่งว่าง: $remaining/$availableSeats';
+    return 'ที่นั่งคงเหลือ: $remaining/$availableSeats';
   }
 
   bool get isAvailable {
