@@ -6,6 +6,7 @@ import '../../widgets/auth_widgets/button.dart';
 
 import 'signup_screen.dart';
 import '../../service/user_service.dart';
+import '../../service/announcement_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -150,6 +151,14 @@ class _LoginScreenState extends State<LoginScreen> {
         fontSize: 16.0,
       );
       return;
+    }
+
+    // Sync bookmarks after successful login
+    try {
+      await AnnouncementService().syncBookmarksAfterLogin();
+    } catch (e) {
+      // Ignore sync errors - user can still use the app
+      print('Bookmark sync failed: $e');
     }
 
     if (!mounted) return;
