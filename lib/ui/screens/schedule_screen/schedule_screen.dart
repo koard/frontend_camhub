@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 // Removed asset/mock usage; now only real service.
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:campusapp/core/routes.dart';
@@ -109,8 +108,9 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     // ตัดวินาทีให้เหลือ HH:MM
     if (t.contains(':')) {
       final parts = t.split(':');
-      if (parts.length >= 2)
+      if (parts.length >= 2) {
         return '${parts[0].padLeft(2, '0')}:${parts[1].padLeft(2, '0')}';
+      }
     }
     return t;
   }

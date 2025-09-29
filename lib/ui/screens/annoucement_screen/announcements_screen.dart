@@ -206,8 +206,9 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
                                           child,
                                           loadingProgress,
                                         ) {
-                                          if (loadingProgress == null)
+                                          if (loadingProgress == null) {
                                             return child;
+                                          }
                                           return Center(
                                             child: CircularProgressIndicator(
                                               strokeWidth: 2,

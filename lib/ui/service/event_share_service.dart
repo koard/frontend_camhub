@@ -20,7 +20,7 @@ class EventShareService {
     final desc = (event['description'] as String?)?.trim();
     if (desc == null || desc.isEmpty) return null;
     if (desc.length <= 160) return desc;
-    return desc.substring(0, 157) + '...';
+    return '${desc.substring(0, 157)}...';
   }
 
   /// Compose the message text for sharing
