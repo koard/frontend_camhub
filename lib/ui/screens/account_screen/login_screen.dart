@@ -158,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await AnnouncementService().syncBookmarksAfterLogin();
     } catch (e) {
       // Ignore sync errors - user can still use the app
-      print('Bookmark sync failed: $e');
+      debugPrint('Bookmark sync failed: $e');
     }
 
     if (!mounted) return;
