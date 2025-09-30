@@ -115,6 +115,29 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     return t;
   }
 
+  void _openMapForLocation(Map<String, dynamic>? location) {
+    if (!mounted) return;
+    if (location == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ไม่มีข้อมูลสถานที่สำหรับวิชานี้')),
+      );
+      return;
+    }
+    final String? code = location['code']?.toString();
+    final String? name = location['name']?.toString();
+
+    final args = <String, dynamic>{
+      'autoSelectFirst': true,
+    };
+    if (code != null && code.trim().isNotEmpty) {
+      args['placeCode'] = code.trim();
+    } else if (name != null && name.trim().isNotEmpty) {
+      args['exactName'] = name.trim();
+    }
+
+    Navigator.pushNamed(context, '/map', arguments: args);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -224,11 +247,13 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                           ),
                           elevation: 4,
                           margin: EdgeInsets.symmetric(vertical: 8.h),
-                          child: Padding(
-                            padding: EdgeInsets.all(16.w),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+                          child: Stack(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.all(16.w),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                 Row(
                                   children: [
                                     Icon(
@@ -263,8 +288,27 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                                   Text(
                                     'อาคาร: ${location['name']} (${location['code']})',
                                   ),
-                              ],
-                            ),
+                                  ],
+                                ),
+                              ),
+                              Positioned(
+                                right: 12,
+                                bottom: 12,
+                                child: Tooltip(
+                                  message: 'แสดงบนแผนที่',
+                                  child: Material(
+                                    color: Colors.white,
+                                    shape: const CircleBorder(),
+                                    elevation: 2,
+                                    child: IconButton(
+                                      icon: Icon(Icons.map, color: const Color(0xFF113F67), size: 20.sp),
+                                      onPressed: () => _openMapForLocation(location),
+                                      tooltip: 'แสดงบนแผนที่',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       },

@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:campusapp/models/announcement.dart';
 import 'package:campusapp/ui/service/announcement_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AnnouncementDetailScreen extends StatefulWidget {
   final Announcement announcement;
@@ -42,6 +44,32 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
   Future<void> _toggleBookmark() async {
     if (isLoading) return;
 
+    // Require login before allowing bookmark actions
+    if (!await _isLoggedIn()) {
+      if (!mounted) return;
+      final goLogin = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('ต้องเข้าสู่ระบบ'),
+          content: const Text('กรุณาเข้าสู่ระบบเพื่อใช้งานบุ๊กมาร์ก'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('ยกเลิก'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('เข้าสู่ระบบ'),
+            ),
+          ],
+        ),
+      );
+      if (goLogin == true && mounted) {
+        Navigator.pushNamed(context, '/login');
+      }
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });
@@ -75,9 +103,39 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     }
   }
 
+  Future<bool> _isLoggedIn() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final tokenRaw = await storage.read(key: 'access_token');
+      if (tokenRaw == null || tokenRaw.isEmpty) return false;
+      // support both raw string and JSON { access_token: "..." }
+      try {
+        final parsed = jsonDecode(tokenRaw);
+        if (parsed is Map && parsed['access_token'] is String) {
+          return (parsed['access_token'] as String).isNotEmpty;
+        }
+      } catch (_) {}
+      return tokenRaw.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   String _formatDateOnly(DateTime? date) {
     if (date == null) return 'ไม่ระบุ';
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  String? _formatThaiPublishedDate(DateTime? date) {
+    if (date == null) return null;
+    const months = [
+      'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+    ];
+    final d = date.day;
+    final m = months[date.month - 1];
+    final y = date.year + 543; // Buddhist year
+    return '$d $m $y';
   }
 
   Widget _buildInfoCard({
@@ -261,7 +319,30 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
               ),
             ),
 
-            SizedBox(height: 20.h),
+            SizedBox(height: 8.h),
+
+            // Published date row (createdAt -> updatedAt -> startDate)
+            Builder(
+              builder: (context) {
+                final published = widget.announcement.createdAt ??
+                    widget.announcement.updatedAt ??
+                    widget.announcement.startDate;
+                final text = _formatThaiPublishedDate(published);
+                if (text == null) return const SizedBox.shrink();
+                return Row(
+                  children: [
+                    Icon(Icons.access_time, size: 16.sp, color: Colors.grey[600]),
+                    SizedBox(width: 6.w),
+                    Text(
+                      'ประกาศเมื่อ $text',
+                      style: TextStyle(fontSize: 12.sp, color: Colors.grey[700]),
+                    ),
+                  ],
+                );
+              },
+            ),
+
+            SizedBox(height: 12.h),
 
             // Description Card
             Container(
