@@ -139,10 +139,51 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    final user = await userService.login(_email.text, _password.text);
-    if (!user) {
+
+    try {
+      final user = await userService.login(_email.text, _password.text);
+      if (!user) {
+        Fluttertoast.showToast(
+          msg: "เข้าสู่ระบบล้มเหลว กรุณาลองใหม่",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.TOP,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+        return;
+      }
+
+      // Sync bookmarks after successful login
+      try {
+        await AnnouncementService().syncBookmarksAfterLogin();
+      } catch (e) {
+        // Ignore sync errors - user can still use the app
+        debugPrint('Bookmark sync failed: $e');
+      }
+
+      if (!mounted) return;
       Fluttertoast.showToast(
-        msg: "เข้าสู่ระบบล้มเหลว กรุณาลองใหม่",
+        msg: "เข้าสู่ระบบสำเร็จ",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.TOP,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+      goToMainHomeScreen(context);
+    } catch (e) {
+      // Handle ApiException และ error อื่นๆ
+      String errorMessage = "เข้าสู่ระบบล้มเหลว กรุณาลองใหม่";
+
+      if (e is ApiException) {
+        errorMessage = e.toString(); // ใช้ข้อความภาษาไทยจาก ApiException
+      }
+
+      Fluttertoast.showToast(
+        msg: errorMessage,
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.TOP,
         timeInSecForIosWeb: 1,
@@ -150,27 +191,6 @@ class _LoginScreenState extends State<LoginScreen> {
         textColor: Colors.white,
         fontSize: 16.0,
       );
-      return;
     }
-
-    // Sync bookmarks after successful login
-    try {
-      await AnnouncementService().syncBookmarksAfterLogin();
-    } catch (e) {
-      // Ignore sync errors - user can still use the app
-      debugPrint('Bookmark sync failed: $e');
-    }
-
-    if (!mounted) return;
-    Fluttertoast.showToast(
-      msg: "เข้าสู่ระบบสำเร็จ",
-      toastLength: Toast.LENGTH_LONG,
-      gravity: ToastGravity.TOP,
-      timeInSecForIosWeb: 1,
-      backgroundColor: Colors.green,
-      textColor: Colors.white,
-      fontSize: 16.0,
-    );
-    goToMainHomeScreen(context);
   }
 }

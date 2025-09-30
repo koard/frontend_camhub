@@ -262,4 +262,33 @@ class SubjectProvider with ChangeNotifier {
       throw Exception('Error unregistering course: $e');
     }
   }
+
+  /// Reset all data when user logs out
+  void clearAllData() {
+    _courses.clear();
+    _enrollments.clear();
+    _registeredSubjectIds.clear();
+    _registeredCourseIds.clear();
+    _courseSchedules.clear();
+    _loadingScheduleCourseIds.clear();
+
+    log('[SubjectProvider] All data cleared after logout');
+    notifyListeners();
+  }
+
+  /// Force refresh all data from API (useful after login)
+  Future<void> refreshAllData() async {
+    try {
+      // Clear existing data first
+      clearAllData();
+
+      // Fetch fresh data from API
+      await fetchCoursesFromApi();
+
+      log('[SubjectProvider] All data refreshed from API');
+    } catch (e) {
+      log('[SubjectProvider] Error refreshing data: $e');
+      rethrow;
+    }
+  }
 }

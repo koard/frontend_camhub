@@ -19,8 +19,13 @@ class _TakeSubjectScreenState extends State<TakeSubjectScreen> {
   void initState() {
     super.initState();
 
-    /// โหลดรายการคอร์สทั้งหมดทันทีที่เข้าหน้านี้
-    Provider.of<SubjectProvider>(context, listen: false).fetchCoursesFromApi();
+    /// Always fetch fresh data - no cache
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<SubjectProvider>(
+        context,
+        listen: false,
+      ).fetchCoursesFromApi();
+    });
   }
 
   /// สลับสถานะการแสดงตารางเวลา (Expand/Collapse)
@@ -209,7 +214,7 @@ class _TakeSubjectScreenState extends State<TakeSubjectScreen> {
                                               ).showSnackBar(
                                                 SnackBar(
                                                   content: Text(
-                                                    'ลงทะเบียนไม่สำเร็จ: $e',
+                                                    'ลงทะเบียนไม่สำเร็จ',
                                                   ),
                                                   backgroundColor: Colors.red,
                                                   duration: const Duration(

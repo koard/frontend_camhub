@@ -125,7 +125,7 @@ class _ExampleInfoScreenState extends State<ExampleInfoScreen> {
       ),
       title: Text('${course.courseName} (${course.courseCode})'),
       subtitle: Text(
-        'หน่วยกิต: ${course.credits} • ที่นั่งว่าง: $remainingSeats/${course.availableSeats}',
+        'หน่วยกิต: ${course.credits} • ที่นั่งคงเหลือ: $remainingSeats/${course.availableSeats}',
       ),
       onTap: () {
         // TODO: เพิ่มฟังก์ชันกดเข้าไปดูรายละเอียดรายวิชาในอนาคต

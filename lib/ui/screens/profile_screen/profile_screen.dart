@@ -11,6 +11,8 @@ import 'package:http_parser/http_parser.dart';
 import 'dart:io';
 import 'package:campusapp/ui/service/schedule_services.dart';
 import 'package:campusapp/ui/service/announcement_service.dart';
+import 'package:campusapp/ui/providers/subject_provider.dart';
+import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -364,13 +366,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: () async {
+                  // Clear SubjectProvider data
+                  Provider.of<SubjectProvider>(
+                    context,
+                    listen: false,
+                  ).clearAllData();
+
+                  // Clear secure storage
                   await _storage.delete(key: 'access_token');
+
                   // ล้างไฟล์ cache ตารางเรียน และประกาศ (รวมถึง bookmark)
                   try {
                     await ScheduleCourseService().clearScheduleFileCache();
                     await AnnouncementService()
                         .clearAllCaches(); // ล้าง cache ทั้งหมด รวม bookmark
                   } catch (_) {}
+
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (context) => MainHomeScreen()),
                   );

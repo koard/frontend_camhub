@@ -24,10 +24,11 @@ class _SubjectScreenState extends State<SubjectScreen> {
   }
 
   Future<void> _loadData() async {
-    await Provider.of<SubjectProvider>(
-      context,
-      listen: false,
-    ).fetchEnrollments();
+    final provider = Provider.of<SubjectProvider>(context, listen: false);
+
+    // Always fetch fresh data - no cache
+    await provider.fetchCoursesFromApi();
+    await provider.fetchEnrollments();
   }
 
   String _translateEnroll(String status) {

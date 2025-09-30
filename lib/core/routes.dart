@@ -11,6 +11,7 @@ import 'package:campusapp/ui/screens/example_info_screen/example_info_screen.dar
 import 'package:campusapp/ui/screens/simulation_screen/simulation_screen.dart';
 import 'package:campusapp/ui/screens/subject_screen/subject_screen.dart';
 import 'package:campusapp/ui/screens/started_screen/on_boarding_screen.dart';
+import 'package:campusapp/ui/screens/annoucement_screen/bookmarked_announcements_screen.dart';
 
 class AppRoutes {
   static const String home = '/home';
@@ -25,6 +26,7 @@ class AppRoutes {
   static const String subject = '/subject';
   static const String onboarding = '/onboarding';
   static const String announcements = '/announcements';
+  static const String bookmarkedAnnouncements = '/bookmarkedAnnouncements';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -52,6 +54,11 @@ class AppRoutes {
         return _buildSlideRoute(const SubjectScreen(), settings);
       case onboarding:
         return _buildSlideRoute(const OnboardingScreen(), settings);
+      case bookmarkedAnnouncements:
+        return _buildSlideRoute(
+          const BookmarkedAnnouncementsScreen(),
+          settings,
+        );
       default:
         // Default to home to avoid accidentally landing on Map and triggering location permissions
         return _buildSlideRoute(const MainHomeScreen(), settings);
