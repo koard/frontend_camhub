@@ -109,8 +109,14 @@ class _LauncherState extends State<Launcher> {
     // Navigate based on first launch
     navigatorKey.currentState?.pushReplacement(
       MaterialPageRoute(
-        builder:
-            (_) => isFirst ? const OnboardingScreen() : const MainHomeScreen(),
+        builder: (_) => isFirst
+            ? OnboardingScreen(
+                onFinish: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('seenOnboarding', true);
+                },
+              )
+            : const MainHomeScreen(),
       ),
     );
   }

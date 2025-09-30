@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:campusapp/ui/screens/account_screen/login_screen.dart';
 import '../main_screen/main_screen.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -69,6 +70,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _goToHome() async {
     if (widget.onFinish != null) {
       await widget.onFinish!();
+    } else {
+      // Fallback: mark onboarding as seen to avoid showing every app launch
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('seenOnboarding', true);
     }
     Navigator.pushReplacement(
       context,
