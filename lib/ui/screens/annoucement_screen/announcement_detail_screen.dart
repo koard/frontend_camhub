@@ -126,17 +126,6 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  String? _formatThaiPublishedDate(DateTime? date) {
-    if (date == null) return null;
-    const months = [
-      'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-    ];
-    final d = date.day;
-    final m = months[date.month - 1];
-    final y = date.year + 543; // Buddhist year
-    return '$d $m $y';
-  }
 
   Widget _buildInfoCard({
     required IconData icon,
@@ -320,27 +309,6 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
             ),
 
             SizedBox(height: 8.h),
-
-            // Published date row (createdAt -> updatedAt -> startDate)
-            Builder(
-              builder: (context) {
-                final published = widget.announcement.createdAt ??
-                    widget.announcement.updatedAt ??
-                    widget.announcement.startDate;
-                final text = _formatThaiPublishedDate(published);
-                if (text == null) return const SizedBox.shrink();
-                return Row(
-                  children: [
-                    Icon(Icons.access_time, size: 16.sp, color: Colors.grey[600]),
-                    SizedBox(width: 6.w),
-                    Text(
-                      'ประกาศเมื่อ $text',
-                      style: TextStyle(fontSize: 12.sp, color: Colors.grey[700]),
-                    ),
-                  ],
-                );
-              },
-            ),
 
             SizedBox(height: 12.h),
 
