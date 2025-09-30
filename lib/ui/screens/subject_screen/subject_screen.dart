@@ -73,8 +73,9 @@ class _SubjectScreenState extends State<SubjectScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      // ไปหน้าแก้ไขและรอผลลัพธ์
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder:
@@ -82,6 +83,8 @@ class _SubjectScreenState extends State<SubjectScreen> {
                                   const EditRegisteredSubjectScreen(), // 👈 หน้าสำหรับแก้ไข
                         ),
                       );
+                      // เมื่อกลับมา ให้รีเฟรชข้อมูล
+                      await _loadData();
                     },
                     icon: const Icon(Icons.edit),
                     label: const Text('แก้ไข'),

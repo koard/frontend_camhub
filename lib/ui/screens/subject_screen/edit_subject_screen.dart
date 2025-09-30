@@ -69,6 +69,9 @@ class _EditRegisteredSubjectState extends State<EditRegisteredSubjectScreen> {
             backgroundColor: Colors.green,
           ),
         );
+
+        // รีเฟรชข้อมูลหลังจากลบวิชาสำเร็จ
+        await _loadData();
       }
     } catch (e) {
       if (mounted) {
