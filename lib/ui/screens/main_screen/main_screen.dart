@@ -1,12 +1,11 @@
 import 'package:campusapp/ui/screens/home_screen/home_screen.dart';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../profile_screen/profile_screen.dart';
 import '../setting_screen/setting_screen.dart';
 import '../subject_screen/take_subject_screen.dart';
 import '../schedule_screen/schedule_screen.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:campusapp/core/auth/auth_utils.dart';
 
 class MainHomeScreen extends StatefulWidget {
   const MainHomeScreen({super.key});
@@ -30,7 +29,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
   Future<void> _onItemTapped(int index) async {
     // Require login for protected tabs: Schedule (1) and Profile (2)
     if (index == 1 || index == 2) {
-      final loggedIn = await _isLoggedIn();
+      final loggedIn = await AuthUtils.isLoggedIn();
       if (!loggedIn) {
         if (!mounted) return;
         final goLogin = await showDialog<bool>(
@@ -65,22 +64,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
     });
   }
 
-  Future<bool> _isLoggedIn() async {
-    try {
-      const storage = FlutterSecureStorage();
-      final tokenRaw = await storage.read(key: 'access_token');
-      if (tokenRaw == null || tokenRaw.isEmpty) return false;
-      try {
-        final parsed = jsonDecode(tokenRaw);
-        if (parsed is Map && parsed['access_token'] is String) {
-          return (parsed['access_token'] as String).isNotEmpty;
-        }
-      } catch (_) {}
-      return tokenRaw.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

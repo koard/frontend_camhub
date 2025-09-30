@@ -1,11 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../service/event_enrollment_service.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../service/event_share_service.dart';
 import '../../service/event_service.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:campusapp/core/auth/auth_utils.dart';
 import 'package:campusapp/core/routes.dart';
 
 class EventDetailScreen extends StatefulWidget {
@@ -572,7 +571,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   Future<void> _onPressEnroll() async {
     // Require login before allowing enroll/cancel
-    if (!await _isLoggedIn()) {
+    if (!await AuthUtils.isLoggedIn()) {
       if (!mounted) return;
       final goLogin = await showDialog<bool>(
         context: context,
@@ -628,18 +627,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     }
   }
 
-  Future<bool> _isLoggedIn() async {
-    try {
-      const storage = FlutterSecureStorage();
-      final tokenJson = await storage.read(key: 'access_token');
-      if (tokenJson == null || tokenJson.isEmpty) return false;
-      final data = jsonDecode(tokenJson);
-      final token = data['access_token'];
-      return token is String && token.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
 
   Future<void> _onPressShare() async {
     // Build public share URL based on backend `/api/events/public/{id}`

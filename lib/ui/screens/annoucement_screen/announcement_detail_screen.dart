@@ -1,9 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:campusapp/models/announcement.dart';
 import 'package:campusapp/ui/service/announcement_service.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:campusapp/core/auth/auth_utils.dart';
 
 class AnnouncementDetailScreen extends StatefulWidget {
   final Announcement announcement;
@@ -44,8 +43,8 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
   Future<void> _toggleBookmark() async {
     if (isLoading) return;
 
-    // Require login before allowing bookmark actions
-    if (!await _isLoggedIn()) {
+  // Require login before allowing bookmark actions
+    if (!await AuthUtils.isLoggedIn()) {
       if (!mounted) return;
       final goLogin = await showDialog<bool>(
         context: context,
@@ -102,25 +101,6 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
       ).showSnackBar(const SnackBar(content: Text('เกิดข้อผิดพลาด')));
     }
   }
-
-  Future<bool> _isLoggedIn() async {
-    try {
-      const storage = FlutterSecureStorage();
-      final tokenRaw = await storage.read(key: 'access_token');
-      if (tokenRaw == null || tokenRaw.isEmpty) return false;
-      // support both raw string and JSON { access_token: "..." }
-      try {
-        final parsed = jsonDecode(tokenRaw);
-        if (parsed is Map && parsed['access_token'] is String) {
-          return (parsed['access_token'] as String).isNotEmpty;
-        }
-      } catch (_) {}
-      return tokenRaw.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
-
   String _formatDateOnly(DateTime? date) {
     if (date == null) return 'ไม่ระบุ';
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
