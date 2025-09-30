@@ -21,6 +21,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   bool _loading = false;
   bool _enrolled = false;
   int? _enrolledCount;
+  int? _capacityState; // capacity from server (public endpoint), used when Home didn't pass it
 
 
   int? _asInt(dynamic v) {
@@ -35,12 +36,23 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       final eventId = _asInt(widget.event['id']);
       if (eventId == null) return;
 
-      // 1) Always try public endpoint for enrolled_count so guests can see the number
-      int? publicCount;
+      // 1) Prefer normal endpoint (auth) for full details if accessible
+      int? serverCount;
+      int? serverCapacity;
       try {
-        final public = await EventService.fetchPublicById(eventId);
-        publicCount = _asInt(public?['enrolled_count']);
+        final normal = await EventService.fetchById(eventId);
+        serverCount = _asInt(normal?['enrolled_count']);
+        serverCapacity = _asInt(normal?['capacity']);
       } catch (_) {}
+
+      // 2) Fallback to public endpoint if needed (for guests)
+      if (serverCount == null || serverCapacity == null) {
+        try {
+          final public = await EventService.fetchPublicById(eventId);
+          serverCount ??= _asInt(public?['enrolled_count']);
+          serverCapacity ??= _asInt(public?['capacity']);
+        } catch (_) {}
+      }
 
       // 2) Auth-based checks (safe if not logged in: falls back to false/0)
       bool enrolled = false;
@@ -48,7 +60,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         enrolled = await EventEnrollmentService.isEnrolled(eventId);
       } catch (_) {}
 
-      int? total = publicCount;
+  int? total = serverCount;
       // If public endpoint didn't provide the count, try the private count as a fallback
       if (total == null) {
         try {
@@ -62,6 +74,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         // Only set when we actually have a value; avoid overriding with 0 due to auth failures
         if (total != null) {
           _enrolledCount = total;
+        }
+        // Bring capacity from server so progress bar can render when opened from Home
+        if (serverCapacity != null) {
+          _capacityState = serverCapacity;
         }
       });
     } catch (_) {}
@@ -77,7 +93,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final enrolled = _enrolledCount ?? _asInt(widget.event['enrolled_count']);
-    final capacity = _asInt(widget.event['capacity']);
+    final capacity = _capacityState ?? _asInt(widget.event['capacity']);
     final showCapacity = enrolled != null && capacity != null && capacity > 0;
   final isFull = showCapacity && enrolled >= capacity;
 
@@ -220,14 +236,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             SizedBox(height: 16.h),
 
             // ข้อมูลเพิ่มเติม
-            if (widget.event["location"] != null && (widget.event["location"] as String).isNotEmpty)
-              _buildDetailCard(
-                "สถานที่",
-                widget.event["location"],
-                Icons.location_on,
-                Colors.orange,
-              ),
-            if (widget.event["location"] != null && (widget.event["location"] as String).isNotEmpty)
+            if (_hasLocation)
+              _buildLocationCard(),
+            if (_hasLocation)
               SizedBox(height: 16.h),
 
             if (widget.event["organizer"] != null && (widget.event["organizer"] as String).isNotEmpty)
@@ -276,6 +287,88 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  bool get _hasLocation =>
+      (widget.event["location"] as String?)?.isNotEmpty == true;
+
+  Widget _buildLocationCard() {
+  final name = widget.event["location"] as String?;
+  final subtitle = name ?? 'ไม่ระบุ';
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+      child: Padding(
+        padding: EdgeInsets.all(16.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8.w),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: Icon(Icons.location_on, size: 20.sp, color: Colors.orange),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'สถานที่',
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        subtitle,
+                        style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                ElevatedButton.icon(
+                  onPressed: _onOpenMapPressed,
+                  icon: const Icon(Icons.map),
+                  label: Text('ดูบนแผนที่', style: TextStyle(fontSize: 14.sp)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade400,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 12.w),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onOpenMapPressed() {
+    final name = (widget.event["location"] as String?)?.trim();
+    if (name == null || name.isEmpty) return;
+    Navigator.of(context).pushNamed(
+      AppRoutes.map,
+      arguments: {
+        // Pass exactName so MapScreen can directly select by name without extra typing
+        'exactName': name,
+        'autoSelectFirst': true, // still keep as fallback if exact matches are not found
+      },
     );
   }
 

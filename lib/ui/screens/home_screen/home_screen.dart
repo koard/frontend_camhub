@@ -5,6 +5,8 @@ import 'package:campusapp/models/announcement.dart';
 import 'package:campusapp/ui/service/announcement_service.dart';
 import 'package:campusapp/models/event.dart';
 import 'package:campusapp/ui/service/event_service.dart';
+import 'package:campusapp/ui/screens/annoucement_screen/announcement_detail_screen.dart';
+import 'package:campusapp/ui/screens/events_screen/event_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -265,6 +267,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 announcement.title,
                 announcement.description,
                 announcement.displayDate,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AnnouncementDetailScreen(
+                        announcement: announcement,
+                      ),
+                    ),
+                  );
+                },
               );
             },
           );
@@ -300,7 +311,27 @@ class _HomeScreenState extends State<HomeScreen> {
             separatorBuilder: (_, __) => SizedBox(width: 12.w),
             itemBuilder: (context, index) {
               final item = data[index];
-              return _buildCard(item.name, item.description, item.startDate);
+              return _buildCard(
+                item.name,
+                item.description,
+                item.startDate,
+                onTap: () {
+                  final map = <String, dynamic>{
+                    'id': item.id,
+                    'name': item.name,
+                    'description': item.description,
+                    'start_date': item.startDate?.toIso8601String(),
+                    'end_date': item.endDate?.toIso8601String(),
+                    'image_url': item.imageUrl,
+                    'location': item.location,
+                  };
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => EventDetailScreen(event: map),
+                    ),
+                  );
+                },
+              );
             },
           );
         },
@@ -309,37 +340,44 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Shared card widget
-  Widget _buildCard(String title, String description, DateTime? date) {
-    return Container(
-      width: 200.w,
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
+  Widget _buildCard(String title, String description, DateTime? date, {VoidCallback? onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(12.r),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4.r)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        onTap: onTap,
+        child: Container(
+          width: 200.w,
+          padding: EdgeInsets.all(12.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12.r),
+            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4.r)],
           ),
-          SizedBox(height: 4.h),
-          Text(
-            description,
-            style: TextStyle(fontSize: 12.sp),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: 4.h),
+              Text(
+                description,
+                style: TextStyle(fontSize: 12.sp),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const Spacer(),
+              Text(
+                date != null ? '${date.day}/${date.month}/${date.year}' : '',
+                style: TextStyle(fontSize: 10.sp, color: Colors.grey),
+              ),
+            ],
           ),
-          const Spacer(),
-          Text(
-            date != null ? '${date.day}/${date.month}/${date.year}' : '',
-            style: TextStyle(fontSize: 10.sp, color: Colors.grey),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -347,38 +385,46 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCardAnnouncements(
     String title,
     String description,
-    DateTime? date,
-  ) {
-    return Container(
-      width: 200.w,
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    DateTime? date, {
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(12.r),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4.r)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        onTap: onTap,
+        child: Container(
+          width: 200.w,
+          padding: EdgeInsets.all(12.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12.r),
+            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4.r)],
           ),
-          SizedBox(height: 4.h),
-          Text(
-            description,
-            style: TextStyle(fontSize: 12.sp),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: 4.h),
+              Text(
+                description,
+                style: TextStyle(fontSize: 12.sp),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const Spacer(),
+              Text(
+                date != null ? '${date.day}/${date.month}/${date.year}' : '',
+                style: TextStyle(fontSize: 10.sp, color: Colors.grey),
+              ),
+            ],
           ),
-          const Spacer(),
-          Text(
-            date != null ? '${date.day}/${date.month}/${date.year}' : '',
-            style: TextStyle(fontSize: 10.sp, color: Colors.grey),
-          ),
-        ],
+        ),
       ),
     );
   }

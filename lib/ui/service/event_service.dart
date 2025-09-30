@@ -46,6 +46,15 @@ class EventService {
     return events.take(limit).toList();
   }
 
+  // Fetch normal event details by id
+  static Future<Map<String, dynamic>?> fetchById(int eventId) async {
+    final res = await http.get(_uri('/api/events/$eventId'));
+    if (res.statusCode != 200) return null;
+    final map = Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+    map['name'] = map['title'] ?? map['name'];
+    return map;
+  }
+
   // Fetch public event details by id for deep link navigation
   static Future<Map<String, dynamic>?> fetchPublicById(int eventId) async {
     final res = await http.get(_uri('/api/events/public/$eventId'));

@@ -42,6 +42,13 @@ class _MapScreenState extends State<MapScreen> {
   String? _locationsError;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  // Pending deep-link/route search
+  String? _pendingQuery;
+  bool _pendingAutoSelectFirst = false;
+  String? _pendingExactName;
+  String? _pendingPlaceId;
+  String? _pendingPlaceCode;
+  bool _initialSearchApplied = false;
   // Chip auto-scroll
   final ScrollController _chipsScrollController = ScrollController();
   final Map<String, GlobalKey> _chipKeys = {}; // faculty.id -> key for size/position
@@ -50,6 +57,30 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _prepare();
+    // Read route args after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map<String, dynamic>) {
+        final q = (args['query'] as String?)?.trim();
+        _pendingExactName = (args['exactName'] as String?)?.trim();
+        _pendingPlaceId = (args['placeId'] as String?)?.trim();
+        _pendingPlaceCode = (args['placeCode'] as String?)?.trim();
+        if (q != null && q.isNotEmpty) {
+          _pendingQuery = q;
+          _pendingAutoSelectFirst = args['autoSelectFirst'] == true;
+          setState(() {
+            _searchQuery = q;
+            _searchController.text = q;
+            _applyFilter();
+          });
+          _attemptApplyPendingSearch();
+        } else {
+          // Even without a query, try to apply pending exact selection if provided
+          _pendingAutoSelectFirst = args['autoSelectFirst'] == true;
+          _attemptApplyPendingSearch();
+        }
+      }
+    });
   }
 
   Future<void> _prepare() async {
@@ -88,6 +119,7 @@ class _MapScreenState extends State<MapScreen> {
       if (_mapViewController != null) {
         await _addPlaceMarkers();
       }
+      _attemptApplyPendingSearch();
     } catch (e) {
       _locationsError = e.toString();
       _places = [];
@@ -241,6 +273,7 @@ class _MapScreenState extends State<MapScreen> {
     // Always (re)add markers when the map view is (re)created to keep ID mappings fresh
     await _addPlaceMarkers();
     _focusCameraOnCurrentLocation();
+    _attemptApplyPendingSearch();
   }
 
   Future<void> _addPlaceMarkers() async {
@@ -832,5 +865,85 @@ class _MapScreenState extends State<MapScreen> {
         curve: Curves.easeOutCubic,
       );
     });
+  }
+
+  /// Apply pending search passed via route arguments: set first match selected and focus.
+  void _attemptApplyPendingSearch() async {
+    if (_initialSearchApplied) return;
+    if (_mapViewController == null) return; // Needs map controller
+    if (_places.isEmpty) return; // Needs data
+    // 1) Direct select by placeId
+    if (_pendingPlaceId != null && _pendingPlaceId!.isNotEmpty) {
+      final p = _places.firstWhere(
+        (e) => e.id == _pendingPlaceId,
+        orElse: () => _places.first,
+      );
+      setState(() {
+        _selectedPlace = p;
+        _descExpanded = false;
+        _searchQuery = '';
+        _searchController.text = '';
+        _applyFilter();
+      });
+      await _focusCameraOnFaculty(p);
+      _scrollSelectedChipIntoView();
+      _initialSearchApplied = true;
+      return;
+    }
+    // 2) Direct select by placeCode (exact match, case-insensitive)
+    if (_pendingPlaceCode != null && _pendingPlaceCode!.isNotEmpty) {
+      final code = _pendingPlaceCode!.toLowerCase();
+      final match = _places.firstWhere(
+        (e) => (e.code ?? '').toLowerCase() == code,
+        orElse: () => _places.first,
+      );
+      setState(() {
+        _selectedPlace = match;
+        _descExpanded = false;
+        _searchQuery = '';
+        _searchController.text = '';
+        _applyFilter();
+      });
+      await _focusCameraOnFaculty(match);
+      _scrollSelectedChipIntoView();
+      _initialSearchApplied = true;
+      return;
+    }
+    // 3) Direct select by exactName (TH/EN), case-insensitive
+    if (_pendingExactName != null && _pendingExactName!.isNotEmpty) {
+      final n = _pendingExactName!.toLowerCase();
+      final candidates = _places.where((e) =>
+          e.nameTh.toLowerCase() == n || (e.nameEn ?? '').toLowerCase() == n);
+      if (candidates.isNotEmpty) {
+        final p = candidates.first;
+        setState(() {
+          _selectedPlace = p;
+          _descExpanded = false;
+          _searchQuery = '';
+          _searchController.text = '';
+          _applyFilter();
+        });
+        await _focusCameraOnFaculty(p);
+        _scrollSelectedChipIntoView();
+        _initialSearchApplied = true;
+        return;
+      }
+    }
+    // 4) Fallback: use query filter and auto-select first result
+    if (_pendingQuery == null) return;
+    if (_filteredPlaces.isEmpty) return; // No match
+    if (!_pendingAutoSelectFirst) return;
+    final p = _filteredPlaces.first;
+    setState(() {
+      _selectedPlace = p;
+      _descExpanded = false;
+      // Clear search to show the selected place card with the navigation button
+      _searchQuery = '';
+      _searchController.text = '';
+      _applyFilter();
+    });
+    await _focusCameraOnFaculty(p);
+    _scrollSelectedChipIntoView();
+    _initialSearchApplied = true;
   }
 }
