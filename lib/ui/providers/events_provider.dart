@@ -2,8 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 
 class EventsProvider {
   // Set API_BASE_URL in assets/.env and ensure dotenv is loaded in main.dart
@@ -32,9 +30,6 @@ class EventsProvider {
       );
 
       if (resp.statusCode != 200) {
-        // Try cached data first when server returns error
-        final cached = await _readCache();
-        if (cached != null) return cached;
         throw Exception('Failed to fetch events (${resp.statusCode})');
       }
 
@@ -47,26 +42,16 @@ class EventsProvider {
         return map;
       }).toList();
 
-      // Persist cache for offline usage
-      await _writeCache(list);
       return list;
     } on SocketException catch (_) {
-      final cached = await _readCache();
-      if (cached != null) return cached;
       rethrow;
     } on HttpException catch (_) {
-      final cached = await _readCache();
-      if (cached != null) return cached;
       rethrow;
     } on FormatException catch (_) {
-      // Response body not JSON; try cache
-  final cached = await _readCache();
-      if (cached != null) return cached;
+      // Response body not JSON
       rethrow;
     } catch (_) {
-      // Any other error -> try cache
-      final cached = await _readCache();
-      if (cached != null) return cached;
+      // Any other error
       rethrow;
     }
   }
@@ -100,35 +85,3 @@ class EventsProvider {
   }
 }
 
-// Offline cache helpers
-extension _EventsCache on EventsProvider {
-  static const _cacheFileName = 'events_cache.json';
-
-  Future<File> _cacheFile() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File(p.join(dir.path, _cacheFileName));
-  }
-
-  Future<void> _writeCache(List<Map<String, dynamic>> list) async {
-    try {
-      final f = await _cacheFile();
-      await f.writeAsString(json.encode(list));
-    } catch (_) {
-      // ignore cache write errors
-    }
-  }
-
-  Future<List<Map<String, dynamic>>?> _readCache() async {
-    try {
-      final f = await _cacheFile();
-      if (!await f.exists()) return null;
-      final s = await f.readAsString();
-      final data = json.decode(s) as List<dynamic>;
-      return data
-          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
-    } catch (_) {
-      return null;
-    }
-  }
-}

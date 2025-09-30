@@ -135,6 +135,18 @@ class _EventsScreenState extends State<EventsScreen> {
               }).toList();
         }
 
+        // Sort events: newest first by start_date (fallback to end_date)
+        events.sort((a, b) {
+          DateTime? aStart = DateTime.tryParse(a['start_date'] ?? '');
+          DateTime? bStart = DateTime.tryParse(b['start_date'] ?? '');
+          DateTime? aEnd = DateTime.tryParse(a['end_date'] ?? '');
+          DateTime? bEnd = DateTime.tryParse(b['end_date'] ?? '');
+
+          final aDate = aStart ?? aEnd ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bDate = bStart ?? bEnd ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return bDate.compareTo(aDate); // descending
+        });
+
         return Scaffold(
           appBar: AppBar(
             title: const Text('กิจกรรม'),

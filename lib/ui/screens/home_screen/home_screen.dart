@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:campusapp/models/announcement.dart';
@@ -7,6 +8,7 @@ import 'package:campusapp/models/event.dart';
 import 'package:campusapp/ui/service/event_service.dart';
 import 'package:campusapp/ui/screens/annoucement_screen/announcement_detail_screen.dart';
 import 'package:campusapp/ui/screens/events_screen/event_detail_screen.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,7 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _startAutoSlide();
 
-    _announcementFuture = AnnouncementService().getAnnouncements();
+    // Use file fallback so announcements can still show when offline
+    _announcementFuture = AnnouncementService().getAnnouncementsWithFileFallback();
     _eventFuture = EventService.fetchLatest();
   }
 
@@ -65,6 +68,54 @@ class _HomeScreenState extends State<HomeScreen> {
     _timer?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<bool> _isLoggedIn() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final tokenRaw = await storage.read(key: 'access_token');
+      if (tokenRaw == null || tokenRaw.isEmpty) return false;
+      // support both raw string and JSON { access_token: "..." }
+      try {
+        final parsed = jsonDecode(tokenRaw);
+        if (parsed is Map && parsed['access_token'] is String) {
+          return (parsed['access_token'] as String).isNotEmpty;
+        }
+      } catch (_) {}
+      return tokenRaw.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _onTapSubject() async {
+    if (await _isLoggedIn()) {
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/subject');
+      return;
+    }
+
+    if (!mounted) return;
+    final goLogin = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ต้องเข้าสู่ระบบ'),
+        content: const Text('กรุณาเข้าสู่ระบบก่อนเข้าหน้าลงทะเบียนเรียน'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('ยกเลิก'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('เข้าสู่ระบบ'),
+          ),
+        ],
+      ),
+    );
+    if (goLogin == true && mounted) {
+      Navigator.pushNamed(context, '/login');
+    }
   }
 
   @override
@@ -179,16 +230,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildToolButton(
                     Icons.computer,
                     'ลงทะเบียน',
-                    onTap: () => Navigator.pushNamed(context, '/subject'),
+                    onTap: _onTapSubject,
                   ),
                   _buildToolButton(
                     Icons.bookmarks,
                     'บุ๊กมาร์ก',
-                    onTap:
-                        () => Navigator.pushNamed(
-                          context,
-                          '/bookmarkedAnnouncements',
-                        ),
+                    onTap: _onTapBookmarks,
                   ),
                   _buildToolButton(
                     Icons.map,
@@ -202,6 +249,35 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _onTapBookmarks() async {
+    if (await _isLoggedIn()) {
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/bookmarkedAnnouncements');
+      return;
+    }
+    if (!mounted) return;
+    final goLogin = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ต้องเข้าสู่ระบบ'),
+        content: const Text('กรุณาเข้าสู่ระบบเพื่อใช้งานบุ๊กมาร์ก'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('ยกเลิก'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('เข้าสู่ระบบ'),
+          ),
+        ],
+      ),
+    );
+    if (goLogin == true && mounted) {
+      Navigator.pushNamed(context, '/login');
+    }
   }
 
   // Section Header
@@ -250,10 +326,12 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          if (snapshot.hasError ||
-              !snapshot.hasData ||
-              snapshot.data!.isEmpty) {
+          if (snapshot.hasError) {
+            return _buildOfflineMessage(
+              message: 'คุณออฟไลน์อยู่\nไม่สามารถโหลดประกาศได้',
+            );
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
               child: Text('ไม่มีประกาศ', style: TextStyle(fontSize: 14.sp)),
             );
@@ -298,10 +376,12 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          if (snapshot.hasError ||
-              !snapshot.hasData ||
-              snapshot.data!.isEmpty) {
+          if (snapshot.hasError) {
+            return _buildOfflineMessage(
+              message: 'คุณออฟไลน์อยู่\nไม่สามารถโหลดกิจกรรมได้',
+            );
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
               child: Text('ไม่มีกิจกรรม', style: TextStyle(fontSize: 14.sp)),
             );
@@ -450,6 +530,27 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               label,
               style: TextStyle(color: Colors.white, fontSize: 12.sp),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Offline message helper (no retry button)
+  Widget _buildOfflineMessage({required String message}) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off, size: 40, color: Colors.grey),
+            SizedBox(height: 8.h),
+            Text(
+              message,
+              style: TextStyle(color: Colors.black54, fontSize: 13.sp),
               textAlign: TextAlign.center,
             ),
           ],
