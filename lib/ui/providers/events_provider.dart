@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -21,24 +22,38 @@ class EventsProvider {
   }
 
   Future<List<Map<String, dynamic>>> fetchEvents() async {
-    final resp = await http.get(
-      _uri('/api/events', {
-        'include_enrolled_count': 'true',
-      }),
-    );
+    try {
+      final resp = await http.get(
+        _uri('/api/events', {
+          'include_enrolled_count': 'true',
+        }),
+      );
 
-    if (resp.statusCode != 200) {
-      throw Exception('Failed to fetch events (${resp.statusCode}): ${resp.body}');
+      if (resp.statusCode != 200) {
+        throw Exception('Failed to fetch events (${resp.statusCode})');
+      }
+
+      final List<dynamic> jsonList = json.decode(resp.body) as List<dynamic>;
+      // Normalize fields to match current UI usage (expects `name`, not `title`)
+      final list = jsonList.map<Map<String, dynamic>>((e) {
+        final map = Map<String, dynamic>.from(e as Map);
+        map['name'] = map['title'];
+        // Dates are already ISO strings from the API; keep as-is for UI parsing
+        return map;
+      }).toList();
+
+      return list;
+    } on SocketException catch (_) {
+      rethrow;
+    } on HttpException catch (_) {
+      rethrow;
+    } on FormatException catch (_) {
+      // Response body not JSON
+      rethrow;
+    } catch (_) {
+      // Any other error
+      rethrow;
     }
-
-    final List<dynamic> jsonList = json.decode(resp.body) as List<dynamic>;
-    // Normalize fields to match current UI usage (expects `name`, not `title`)
-    return jsonList.map<Map<String, dynamic>>((e) {
-      final map = Map<String, dynamic>.from(e as Map);
-      map['name'] = map['title'];
-      // Dates are already ISO strings from the API; keep as-is for UI parsing
-      return map;
-    }).toList();
   }
 
   Future<Map<String, dynamic>> fetchEventById(int id, {bool publicView = true}) async {
@@ -69,3 +84,4 @@ class EventsProvider {
     throw UnimplementedError('deleteEvent requires FastAPI auth; not implemented in frontend yet.');
   }
 }
+

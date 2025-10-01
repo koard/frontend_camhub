@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:campusapp/models/announcement.dart';
 import 'package:campusapp/ui/service/announcement_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AnnouncementDetailScreen extends StatefulWidget {
   final Announcement announcement;
@@ -42,6 +44,32 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
   Future<void> _toggleBookmark() async {
     if (isLoading) return;
 
+    // Require login before allowing bookmark actions
+    if (!await _isLoggedIn()) {
+      if (!mounted) return;
+      final goLogin = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('ต้องเข้าสู่ระบบ'),
+          content: const Text('กรุณาเข้าสู่ระบบเพื่อใช้งานบุ๊กมาร์ก'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('ยกเลิก'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('เข้าสู่ระบบ'),
+            ),
+          ],
+        ),
+      );
+      if (goLogin == true && mounted) {
+        Navigator.pushNamed(context, '/login');
+      }
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });
@@ -75,10 +103,29 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     }
   }
 
+  Future<bool> _isLoggedIn() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final tokenRaw = await storage.read(key: 'access_token');
+      if (tokenRaw == null || tokenRaw.isEmpty) return false;
+      // support both raw string and JSON { access_token: "..." }
+      try {
+        final parsed = jsonDecode(tokenRaw);
+        if (parsed is Map && parsed['access_token'] is String) {
+          return (parsed['access_token'] as String).isNotEmpty;
+        }
+      } catch (_) {}
+      return tokenRaw.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   String _formatDateOnly(DateTime? date) {
     if (date == null) return 'ไม่ระบุ';
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
+
 
   Widget _buildInfoCard({
     required IconData icon,
@@ -261,7 +308,9 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
               ),
             ),
 
-            SizedBox(height: 20.h),
+            SizedBox(height: 8.h),
+
+            SizedBox(height: 12.h),
 
             // Description Card
             Container(

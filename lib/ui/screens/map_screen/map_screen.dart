@@ -37,11 +37,17 @@ class _MapScreenState extends State<MapScreen> {
   List<PlaceDestination> _places = [];
   List<PlaceDestination> _filteredPlaces = [];
   PlaceDestination? _selectedPlace;
-  bool _descExpanded = false;
   bool _loadingLocations = false;
   String? _locationsError;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  // Pending deep-link/route search
+  String? _pendingQuery;
+  bool _pendingAutoSelectFirst = false;
+  String? _pendingExactName;
+  String? _pendingPlaceId;
+  String? _pendingPlaceCode;
+  bool _initialSearchApplied = false;
   // Chip auto-scroll
   final ScrollController _chipsScrollController = ScrollController();
   final Map<String, GlobalKey> _chipKeys = {}; // faculty.id -> key for size/position
@@ -50,6 +56,30 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _prepare();
+    // Read route args after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map<String, dynamic>) {
+        final q = (args['query'] as String?)?.trim();
+        _pendingExactName = (args['exactName'] as String?)?.trim();
+        _pendingPlaceId = (args['placeId'] as String?)?.trim();
+        _pendingPlaceCode = (args['placeCode'] as String?)?.trim();
+        if (q != null && q.isNotEmpty) {
+          _pendingQuery = q;
+          _pendingAutoSelectFirst = args['autoSelectFirst'] == true;
+          setState(() {
+            _searchQuery = q;
+            _searchController.text = q;
+            _applyFilter();
+          });
+          _attemptApplyPendingSearch();
+        } else {
+          // Even without a query, try to apply pending exact selection if provided
+          _pendingAutoSelectFirst = args['autoSelectFirst'] == true;
+          _attemptApplyPendingSearch();
+        }
+      }
+    });
   }
 
   Future<void> _prepare() async {
@@ -88,6 +118,7 @@ class _MapScreenState extends State<MapScreen> {
       if (_mapViewController != null) {
         await _addPlaceMarkers();
       }
+      _attemptApplyPendingSearch();
     } catch (e) {
       _locationsError = e.toString();
       _places = [];
@@ -241,6 +272,7 @@ class _MapScreenState extends State<MapScreen> {
     // Always (re)add markers when the map view is (re)created to keep ID mappings fresh
     await _addPlaceMarkers();
     _focusCameraOnCurrentLocation();
+    _attemptApplyPendingSearch();
   }
 
   Future<void> _addPlaceMarkers() async {
@@ -250,11 +282,15 @@ class _MapScreenState extends State<MapScreen> {
     _markerIdToPlace.clear();
     _placeIdToMarker.clear();
     final List<nav.MarkerOptions> optionsList = _places.map((f) {
+      final meta = (f.code ?? f.nameEn)?.trim();
+      final title = (meta != null && meta.isNotEmpty)
+          ? '${f.nameTh} (${meta})'
+          : f.nameTh;
       return nav.MarkerOptions(
         position: f.coordinate,
         infoWindow: nav.InfoWindow(
-          title: f.nameTh,
-          snippet: (f.code ?? f.nameEn ?? ''),
+          title: title,
+          snippet: '', // keep single-line title; show code in parentheses
         ),
         visible: true,
         draggable: false,
@@ -325,7 +361,6 @@ class _MapScreenState extends State<MapScreen> {
     }
     setState(() {
       _selectedPlace = faculty;
-      _descExpanded = false; // reset expand state on new selection
     });
     _focusCameraOnFaculty(faculty);
     _scrollSelectedChipIntoView();
@@ -673,50 +708,33 @@ class _MapScreenState extends State<MapScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        p.nameTh,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      Text.rich(
+                        TextSpan(
+                          text: p.nameTh,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          children: [
+                            if (((p.code ?? p.nameEn) ?? '').toString().trim().isNotEmpty)
+                              TextSpan(
+                                text: ' (${(p.code ?? p.nameEn)!.trim()})',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        p.code ?? p.nameEn ?? '-',
-                        style: const TextStyle(color: Colors.black54),
-                      ),
                       if (distanceText != null) ...[
                         const SizedBox(height: 2),
-                        Text(distanceText, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                        Text(distanceText, style: const TextStyle(color: Colors.black54, fontSize: 13)),
                       ],
                       if ((p.description ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        GestureDetector(
-                          onTap: () => setState(() => _descExpanded = !_descExpanded),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('รายละเอียด', style: TextStyle(fontWeight: FontWeight.w600)),
-                              Icon(_descExpanded ? Icons.expand_less : Icons.expand_more),
-                            ],
-                          ),
-                        ),
-                        AnimatedCrossFade(
-                          crossFadeState: _descExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-                          duration: const Duration(milliseconds: 200),
-                          firstChild: Padding(
-                            padding: const EdgeInsets.only(top: 6.0),
-                            child: Text(
-                              p.description!,
-                              style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.25),
-                            ),
-                          ),
-                          secondChild: Padding(
-                            padding: const EdgeInsets.only(top: 6.0),
-                            child: Text(
-                              p.description!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.25),
-                            ),
-                          ),
+                        const SizedBox(height: 10),
+                        Text(
+                          p.description!,
+                          style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
                         ),
                       ],
                     ],
@@ -832,5 +850,81 @@ class _MapScreenState extends State<MapScreen> {
         curve: Curves.easeOutCubic,
       );
     });
+  }
+
+  /// Apply pending search passed via route arguments: set first match selected and focus.
+  void _attemptApplyPendingSearch() async {
+    if (_initialSearchApplied) return;
+    if (_mapViewController == null) return; // Needs map controller
+    if (_places.isEmpty) return; // Needs data
+    // 1) Direct select by placeId
+    if (_pendingPlaceId != null && _pendingPlaceId!.isNotEmpty) {
+      final p = _places.firstWhere(
+        (e) => e.id == _pendingPlaceId,
+        orElse: () => _places.first,
+      );
+      setState(() {
+        _selectedPlace = p;
+        _searchQuery = '';
+        _searchController.text = '';
+        _applyFilter();
+      });
+      await _focusCameraOnFaculty(p);
+      _scrollSelectedChipIntoView();
+      _initialSearchApplied = true;
+      return;
+    }
+    // 2) Direct select by placeCode (exact match, case-insensitive)
+    if (_pendingPlaceCode != null && _pendingPlaceCode!.isNotEmpty) {
+      final code = _pendingPlaceCode!.toLowerCase();
+      final match = _places.firstWhere(
+        (e) => (e.code ?? '').toLowerCase() == code,
+        orElse: () => _places.first,
+      );
+      setState(() {
+        _selectedPlace = match;
+        _searchQuery = '';
+        _searchController.text = '';
+        _applyFilter();
+      });
+      await _focusCameraOnFaculty(match);
+      _scrollSelectedChipIntoView();
+      _initialSearchApplied = true;
+      return;
+    }
+    // 3) Direct select by exactName (TH/EN), case-insensitive
+    if (_pendingExactName != null && _pendingExactName!.isNotEmpty) {
+      final n = _pendingExactName!.toLowerCase();
+      final candidates = _places.where((e) =>
+          e.nameTh.toLowerCase() == n || (e.nameEn ?? '').toLowerCase() == n);
+      if (candidates.isNotEmpty) {
+        final p = candidates.first;
+        setState(() {
+          _selectedPlace = p;
+          _searchQuery = '';
+          _searchController.text = '';
+          _applyFilter();
+        });
+        await _focusCameraOnFaculty(p);
+        _scrollSelectedChipIntoView();
+        _initialSearchApplied = true;
+        return;
+      }
+    }
+    // 4) Fallback: use query filter and auto-select first result
+    if (_pendingQuery == null) return;
+    if (_filteredPlaces.isEmpty) return; // No match
+    if (!_pendingAutoSelectFirst) return;
+    final p = _filteredPlaces.first;
+    setState(() {
+      _selectedPlace = p;
+      // Clear search to show the selected place card with the navigation button
+      _searchQuery = '';
+      _searchController.text = '';
+      _applyFilter();
+    });
+    await _focusCameraOnFaculty(p);
+    _scrollSelectedChipIntoView();
+    _initialSearchApplied = true;
   }
 }
