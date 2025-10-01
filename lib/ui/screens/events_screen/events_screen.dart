@@ -72,27 +72,15 @@ class _EventsScreenState extends State<EventsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(Icons.wifi_off, size: 48, color: Colors.grey),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'คุณออฟไลน์อยู่',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'ไม่สามารถเชื่อมต่อเครือข่ายได้ในขณะนี้\nกรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black54),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          futureEvents = _eventsProvider.fetchEvents();
-                        });
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('ลองใหม่'),
+                    Icon(Icons.wifi_off, size: 48, color: Colors.grey),
+                    SizedBox(height: 12),
+                    Text(
+                      'ไม่มีกิจกรรมในขณะนี้',
+                      style: TextStyle(
+                        // เพิ่ม style
+                        fontSize: 14.sp,
+                        color: Colors.grey[600],
+                      ),
                     ),
                   ],
                 ),
@@ -142,8 +130,10 @@ class _EventsScreenState extends State<EventsScreen> {
           DateTime? aEnd = DateTime.tryParse(a['end_date'] ?? '');
           DateTime? bEnd = DateTime.tryParse(b['end_date'] ?? '');
 
-          final aDate = aStart ?? aEnd ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final bDate = bStart ?? bEnd ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final aDate =
+              aStart ?? aEnd ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bDate =
+              bStart ?? bEnd ?? DateTime.fromMillisecondsSinceEpoch(0);
           return bDate.compareTo(aDate); // descending
         });
 

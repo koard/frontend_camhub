@@ -126,9 +126,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     final String? code = location['code']?.toString();
     final String? name = location['name']?.toString();
 
-    final args = <String, dynamic>{
-      'autoSelectFirst': true,
-    };
+    final args = <String, dynamic>{'autoSelectFirst': true};
     if (code != null && code.trim().isNotEmpty) {
       args['placeCode'] = code.trim();
     } else if (name != null && name.trim().isNotEmpty) {
@@ -247,13 +245,11 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                           ),
                           elevation: 4,
                           margin: EdgeInsets.symmetric(vertical: 8.h),
-                          child: Stack(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.all(16.w),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
+                          child: Padding(
+                            padding: EdgeInsets.all(16.w),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Row(
                                   children: [
                                     Icon(
@@ -281,34 +277,83 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                                   ],
                                 ),
                                 SizedBox(height: 8.h),
-                                Text('วัน: $dayThai'),
-                                Text('เวลา: $start - $end'),
-                                Text('ห้อง: $roomName'),
-                                if (location != null)
-                                  Text(
-                                    'อาคาร: ${location['name']} (${location['code']})',
-                                  ),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      size: 16.sp,
+                                      color: Colors.grey[600],
+                                    ),
+                                    SizedBox(width: 4.w),
+                                    Text(
+                                      '$dayThai | $start - $end',
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
                                   ],
                                 ),
-                              ),
-                              Positioned(
-                                right: 12,
-                                bottom: 12,
-                                child: Tooltip(
-                                  message: 'แสดงบนแผนที่',
-                                  child: Material(
-                                    color: Colors.white,
-                                    shape: const CircleBorder(),
-                                    elevation: 2,
-                                    child: IconButton(
-                                      icon: Icon(Icons.map, color: const Color(0xFF113F67), size: 20.sp),
-                                      onPressed: () => _openMapForLocation(location),
-                                      tooltip: 'แสดงบนแผนที่',
+                                SizedBox(height: 4.h),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.room,
+                                      size: 16.sp,
+                                      color: Colors.grey[600],
+                                    ),
+                                    SizedBox(width: 4.w),
+                                    Expanded(
+                                      child: Text(
+                                        location != null
+                                            ? 'ห้อง $roomName | ${location['name']} (${location['code']})'
+                                            : 'ห้อง: $roomName',
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          color: Colors.grey[700],
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (location != null) ...[
+                                  SizedBox(height: 12.h),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed:
+                                          () => _openMapForLocation(location),
+                                      icon: Icon(
+                                        Icons.map_outlined,
+                                        size: 18.sp,
+                                      ),
+                                      label: Text(
+                                        'ดูแผนที่',
+                                        style: TextStyle(fontSize: 14.sp),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF113F67,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 10.h,
+                                          horizontal: 16.w,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8.r,
+                                          ),
+                                        ),
+                                        elevation: 2,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                            ],
+                                ],
+                              ],
+                            ),
                           ),
                         );
                       },
