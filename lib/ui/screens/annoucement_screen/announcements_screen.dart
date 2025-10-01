@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:campusapp/models/announcement.dart';
 import 'package:campusapp/ui/service/announcement_service.dart';
 import 'package:campusapp/ui/screens/annoucement_screen/announcement_detail_screen.dart';
 import 'package:campusapp/ui/screens/annoucement_screen/bookmarked_announcements_screen.dart';
 import 'dart:developer';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AnnouncementScreen extends StatefulWidget {
   const AnnouncementScreen({super.key});
@@ -45,32 +43,6 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
   }
 
   Future<void> _toggleBookmark(Announcement announcement) async {
-    // Require login before allowing bookmark actions
-    if (!await _isLoggedIn()) {
-      if (!mounted) return;
-      final goLogin = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('ต้องเข้าสู่ระบบ'),
-          content: const Text('กรุณาเข้าสู่ระบบเพื่อใช้งานบุ๊กมาร์ก'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('ยกเลิก'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('เข้าสู่ระบบ'),
-            ),
-          ],
-        ),
-      );
-      if (goLogin == true && mounted) {
-        Navigator.pushNamed(context, '/login');
-      }
-      return;
-    }
-
     final service = AnnouncementService();
     final isBookmarked = bookmarkedIds.contains(announcement.id);
 
@@ -98,23 +70,6 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('เกิดข้อผิดพลาด')));
-    }
-  }
-
-  Future<bool> _isLoggedIn() async {
-    try {
-      const storage = FlutterSecureStorage();
-      final tokenRaw = await storage.read(key: 'access_token');
-      if (tokenRaw == null || tokenRaw.isEmpty) return false;
-      try {
-        final parsed = jsonDecode(tokenRaw);
-        if (parsed is Map && parsed['access_token'] is String) {
-          return (parsed['access_token'] as String).isNotEmpty;
-        }
-      } catch (_) {}
-      return tokenRaw.isNotEmpty;
-    } catch (_) {
-      return false;
     }
   }
 
@@ -174,32 +129,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.bookmarks),
-            onPressed: () async {
-              if (!await _isLoggedIn()) {
-                final goLogin = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('ต้องเข้าสู่ระบบ'),
-                    content: const Text('กรุณาเข้าสู่ระบบเพื่อดูบุ๊กมาร์กของคุณ'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('ยกเลิก'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('เข้าสู่ระบบ'),
-                      ),
-                    ],
-                  ),
-                );
-                if (goLogin == true && mounted) {
-                  Navigator.pushNamed(context, '/login');
-                }
-                return;
-              }
-
-              if (!mounted) return;
+            onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -229,22 +159,36 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
             }
 
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(
-                child: Text(
-                  'ไม่มีประกาศในขณะนี้\n(เมื่อออฟไลน์จะแสดงเฉพาะประกาศที่บุ๊กมาร์กไว้)',
-                  textAlign: TextAlign.center,
+              return Center(
+                child: Padding(
+                  padding: EdgeInsets.all(50.w), // เปลี่ยนจาก 50 เป็น 50.w
+                  child: Column(
+                    mainAxisAlignment:
+                        MainAxisAlignment.center, // เพิ่มบรรทัดนี้
+                    mainAxisSize: MainAxisSize.min, // เพิ่มบรรทัดนี้
+                    children: [
+                      Icon(
+                        Icons.wifi_off,
+                        size: 48.sp,
+                        color: Colors.grey,
+                      ), // เปลี่ยนจาก 48 เป็น 48.sp
+                      SizedBox(height: 16.h), // เพิ่ม SizedBox เพื่อเว้นระยะ
+                      Text(
+                        'ไม่มีประกาศในขณะนี้\n(เมื่อออฟไลน์จะแสดงเฉพาะประกาศที่บุ๊กมาร์กไว้)',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          // เพิ่ม style
+                          fontSize: 14.sp,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
 
-            final announcements = [...snapshot.data!];
-
-            // Sort newest first by displayDate (createdAt -> updatedAt -> startDate)
-            announcements.sort((a, b) {
-              final aDate = a.displayDate ?? DateTime.fromMillisecondsSinceEpoch(0);
-              final bDate = b.displayDate ?? DateTime.fromMillisecondsSinceEpoch(0);
-              return bDate.compareTo(aDate);
-            });
+            final announcements = snapshot.data!;
 
             return Padding(
               padding: EdgeInsets.all(8.w),
@@ -262,67 +206,63 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
                       padding: EdgeInsets.all(16.w),
                       child: Row(
                         children: [
-                          // Left side - Image with date below
-                          SizedBox(
+                          // Left side - Image
+                          Container(
                             width: 100.w,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 100.w,
-                                  height: 100.h,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8.r),
-                                    color: Colors.grey[200],
-                                  ),
-                                  child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                                      ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(8.r),
-                                          child: Image.network(
-                                            item.imageUrl!,
-                                            fit: BoxFit.cover,
-                                            loadingBuilder: (context, child, loadingProgress) {
-                                              if (loadingProgress == null) {
-                                                return child;
-                                              }
-                                              return Center(
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  value: loadingProgress.expectedTotalBytes != null
-                                                      ? loadingProgress.cumulativeBytesLoaded /
-                                                          loadingProgress.expectedTotalBytes!
-                                                      : null,
-                                                ),
-                                              );
-                                            },
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return Icon(
-                                                Icons.announcement,
-                                                size: 36.sp,
-                                                color: Colors.orange,
-                                              );
-                                            },
-                                          ),
-                                        )
-                                      : Icon(
-                                          Icons.announcement,
-                                          size: 36.sp,
-                                          color: Colors.orange,
-                                        ),
-                                ),
-                                SizedBox(height: 6.h),
-                                if (item.displayDate != null)
-                                  Text(
-                                    _formatDate(item.displayDate!),
-                                    style: TextStyle(
-                                      fontSize: 11.sp,
-                                      color: Colors.grey[600],
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                              ],
+                            height: 100.h,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8.r),
+                              color: Colors.grey[200],
                             ),
+                            child:
+                                item.imageUrl != null &&
+                                        item.imageUrl!.isNotEmpty
+                                    ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(8.r),
+                                      child: Image.network(
+                                        item.imageUrl!,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder: (
+                                          context,
+                                          child,
+                                          loadingProgress,
+                                        ) {
+                                          if (loadingProgress == null) {
+                                            return child;
+                                          }
+                                          return Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              value:
+                                                  loadingProgress
+                                                              .expectedTotalBytes !=
+                                                          null
+                                                      ? loadingProgress
+                                                              .cumulativeBytesLoaded /
+                                                          loadingProgress
+                                                              .expectedTotalBytes!
+                                                      : null,
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder: (
+                                          context,
+                                          error,
+                                          stackTrace,
+                                        ) {
+                                          return Icon(
+                                            Icons.announcement,
+                                            size: 36.sp,
+                                            color: Colors.orange,
+                                          );
+                                        },
+                                      ),
+                                    )
+                                    : Icon(
+                                      Icons.announcement,
+                                      size: 36.sp,
+                                      color: Colors.orange,
+                                    ),
                           ),
                           SizedBox(width: 16.w),
                           // Right side - Content
@@ -436,12 +376,5 @@ class _AnnouncementScreenState extends State<AnnouncementScreen>
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final y = date.year.toString();
-    return '$d/$m/$y';
   }
 }
