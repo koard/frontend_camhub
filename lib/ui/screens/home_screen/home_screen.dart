@@ -40,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _startAutoSlide();
 
     // Use file fallback so announcements can still show when offline
-    _announcementFuture = AnnouncementService().getAnnouncementsWithFileFallback();
+    _announcementFuture = AnnouncementService().getAnnouncements();
     _eventFuture = EventService.fetchLatest();
   }
 
@@ -98,20 +98,21 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     final goLogin = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('ต้องเข้าสู่ระบบ'),
-        content: const Text('กรุณาเข้าสู่ระบบก่อนเข้าหน้าลงทะเบียนเรียน'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('ยกเลิก'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('ต้องเข้าสู่ระบบ'),
+            content: const Text('กรุณาเข้าสู่ระบบก่อนเข้าหน้าลงทะเบียนเรียน'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('ยกเลิก'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('เข้าสู่ระบบ'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('เข้าสู่ระบบ'),
-          ),
-        ],
-      ),
     );
     if (goLogin == true && mounted) {
       Navigator.pushNamed(context, '/login');
@@ -260,20 +261,21 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     final goLogin = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('ต้องเข้าสู่ระบบ'),
-        content: const Text('กรุณาเข้าสู่ระบบเพื่อใช้งานบุ๊กมาร์ก'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('ยกเลิก'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('ต้องเข้าสู่ระบบ'),
+            content: const Text('กรุณาเข้าสู่ระบบเพื่อใช้งานบุ๊กมาร์ก'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('ยกเลิก'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('เข้าสู่ระบบ'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('เข้าสู่ระบบ'),
-          ),
-        ],
-      ),
     );
     if (goLogin == true && mounted) {
       Navigator.pushNamed(context, '/login');
@@ -332,8 +334,8 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(
-              child: Text('ไม่มีประกาศ', style: TextStyle(fontSize: 14.sp)),
+            return _buildOfflineMessage(
+              message: 'คุณออฟไลน์อยู่\nไม่สามารถโหลดประกาศได้',
             );
           }
 
@@ -352,9 +354,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => AnnouncementDetailScreen(
-                        announcement: announcement,
-                      ),
+                      builder:
+                          (_) => AnnouncementDetailScreen(
+                            announcement: announcement,
+                          ),
                     ),
                   );
                 },
@@ -382,8 +385,8 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(
-              child: Text('ไม่มีกิจกรรม', style: TextStyle(fontSize: 14.sp)),
+            return _buildOfflineMessage(
+              message: 'คุณออฟไลน์อยู่\nไม่สามารถโหลดกิจกรรมได้',
             );
           }
 
@@ -424,7 +427,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Shared card widget
-  Widget _buildCard(String title, String description, DateTime? date, {VoidCallback? onTap}) {
+  Widget _buildCard(
+    String title,
+    String description,
+    DateTime? date, {
+    VoidCallback? onTap,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
